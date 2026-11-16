@@ -20,6 +20,21 @@ npm test         # testes do núcleo de cálculo (Node 18+)
 
 Também dá para abrir o `index.html` direto no navegador.
 
+## Instalar no Android (PWA)
+
+O app é um PWA: funciona offline e instala na tela inicial, com ícone próprio e sem barra do navegador.
+O PWA exige **HTTPS** (ou `localhost`). Publique a pasta em qualquer hospedagem estática,
+por exemplo o GitHub Pages (Settings → Pages → branch `main`, pasta `/ (root)`).
+
+1. Abra a URL publicada no **Chrome** do Android.
+2. Menu ⋮ → **Instalar app** (ou **Adicionar à tela inicial**).
+
+Para testar no celular durante o desenvolvimento, rode `npm start` e abra `http://IP-DO-PC:8080`.
+Por ser HTTP e não localhost, nesse caso o Chrome não instala nem ativa o offline. Use
+`chrome://inspect/#devices` com redirecionamento de porta, ou publique em HTTPS.
+
+Ao mudar qualquer arquivo do app, incremente `CACHE` em `sw.js` para os aparelhos receberem a nova versão.
+
 ## Estrutura
 
 | Arquivo | Função |
@@ -27,6 +42,7 @@ Também dá para abrir o `index.html` direto no navegador.
 | `js/calc.js` | Regras de cálculo e tabelas (`TABELAS`), sem acesso ao DOM |
 | `js/app.js` | Interface: leitura do formulário e renderização |
 | `tests/calc.test.js` | Testes (`node:test`) |
+| `manifest.webmanifest`, `sw.js`, `icons/` | PWA: instalação, cache offline e ícones |
 
 Para atualizar a cada ano, edite apenas o objeto `TABELAS` em `js/calc.js`.
 

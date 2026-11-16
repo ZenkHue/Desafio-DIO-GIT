@@ -167,4 +167,11 @@
   $('avos').addEventListener('input', atualizar);
   $('diasFerias').addEventListener('input', atualizar);
   atualizar();
+
+  // PWA: funciona offline e pode ser instalado na tela inicial do Android.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => { /* sem HTTPS/localhost: segue sem offline */ });
+    });
+  }
 })();
