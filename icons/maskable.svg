@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0b6e4f"/>
+  <g transform="translate(256 256) scale(.72) translate(-256 -256)">
+    <rect x="136" y="96" width="240" height="320" rx="28" fill="#fff"/>
+    <rect x="164" y="124" width="184" height="72" rx="10" fill="#e3f4ec"/>
+    <text x="256" y="178" font-family="Arial,Helvetica,sans-serif" font-size="52" font-weight="700" text-anchor="middle" fill="#0b6e4f">R$</text>
+    <g fill="#0b6e4f">
+      <rect x="164" y="224" width="52" height="44" rx="8"/><rect x="230" y="224" width="52" height="44" rx="8"/><rect x="296" y="224" width="52" height="44" rx="8"/>
+      <rect x="164" y="284" width="52" height="44" rx="8"/><rect x="230" y="284" width="52" height="44" rx="8"/><rect x="296" y="284" width="52" height="44" rx="8"/>
+      <rect x="164" y="344" width="118" height="44" rx="8"/>
+    </g>
+    <rect x="296" y="344" width="52" height="44" rx="8" fill="#d98324"/>
+  </g>
+</svg>

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulador de Salário Líquido CLT</title>
+  <meta name="description" content="Calcule seu salário líquido conforme a CLT: INSS, IRRF 2026, FGTS, horas extras, adicionais, 13º salário e férias.">
+  <meta name="theme-color" content="#0b6e4f">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="wrap">
+      <h1>Simulador de Salário Líquido <span class="selo">CLT · 2026</span></h1>
+      <p>Descubra quanto cai na conta depois do INSS, do imposto de renda e dos demais descontos.</p>
+    </div>
+  </header>
+
+  <main class="wrap layout">
+    <form id="form" class="card" autocomplete="off" novalidate>
+      <fieldset>
+        <legend>Remuneração</legend>
+        <label class="campo">
+          <span>Salário bruto mensal</span>
+          <div class="moeda"><i>R$</i><input id="salarioBruto" type="number" inputmode="decimal" min="0" step="0.01" value="5000" required></div>
+        </label>
+        <div class="grade">
+          <label class="campo">
+            <span>Dependentes (IRRF)</span>
+            <input id="dependentes" type="number" inputmode="numeric" min="0" step="1" value="0">
+          </label>
+          <label class="campo">
+            <span>Jornada mensal (horas)</span>
+            <select id="jornadaMensal">
+              <option value="220" selected>220 h (44 h/semana)</option>
+              <option value="200">200 h (40 h/semana)</option>
+              <option value="180">180 h (36 h/semana)</option>
+              <option value="150">150 h (30 h/semana)</option>
+            </select>
+          </label>
+        </div>
+        <label class="campo">
+          <span>Adicional fixo</span>
+          <select id="adicional">
+            <option value="nenhum" selected>Nenhum</option>
+            <option value="periculosidade">Periculosidade (30% do salário)</option>
+            <option value="grau10">Insalubridade grau mínimo (10% do sal. mínimo)</option>
+            <option value="grau20">Insalubridade grau médio (20% do sal. mínimo)</option>
+            <option value="grau40">Insalubridade grau máximo (40% do sal. mínimo)</option>
+          </select>
+          <small>Periculosidade e insalubridade não se acumulam.</small>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Variáveis do mês</legend>
+        <div class="grade tres">
+          <label class="campo"><span>Horas extras 50%</span><input id="he50" type="number" inputmode="decimal" min="0" step="0.5" value="0"></label>
+          <label class="campo"><span>Horas extras 100%</span><input id="he100" type="number" inputmode="decimal" min="0" step="0.5" value="0"></label>
+          <label class="campo"><span>Horas noturnas</span><input id="horasNoturnas" type="number" inputmode="decimal" min="0" step="0.5" value="0"></label>
+        </div>
+        <div class="grade">
+          <label class="campo"><span>Dias úteis (incl. sábados)</span><input id="diasUteis" type="number" inputmode="numeric" min="0" max="31" value="25"></label>
+          <label class="campo"><span>Domingos e feriados (DSR)</span><input id="diasDSR" type="number" inputmode="numeric" min="0" max="31" value="5"></label>
+        </div>
+        <label class="campo">
+          <span>Outros proventos tributáveis (comissão, bônus…)</span>
+          <div class="moeda"><i>R$</i><input id="outrosProventos" type="number" inputmode="decimal" min="0" step="0.01" value="0"></div>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Descontos</legend>
+        <label class="check">
+          <input id="vtAtivo" type="checkbox">
+          <span>Recebo vale-transporte (desconto de 6% do salário)</span>
+        </label>
+        <label class="campo" id="vtCustoCampo" hidden>
+          <span>Custo mensal real do VT (opcional)</span>
+          <div class="moeda"><i>R$</i><input id="vtCusto" type="number" inputmode="decimal" min="0" step="0.01" value="0"></div>
+          <small>O desconto é limitado ao menor valor entre 6% do salário e o custo real.</small>
+        </label>
+        <div class="grade">
+          <label class="campo"><span>Vale-refeição / alimentação</span><div class="moeda"><i>R$</i><input id="vrDesconto" type="number" inputmode="decimal" min="0" step="0.01" value="0"></div></label>
+          <label class="campo"><span>Plano de saúde / odonto</span><div class="moeda"><i>R$</i><input id="planoSaude" type="number" inputmode="decimal" min="0" step="0.01" value="0"></div></label>
+          <label class="campo"><span>Pensão alimentícia</span><div class="moeda"><i>R$</i><input id="pensao" type="number" inputmode="decimal" min="0" step="0.01" value="0"></div></label>
+          <label class="campo"><span>Outros descontos</span><div class="moeda"><i>R$</i><input id="outrosDescontos" type="number" inputmode="decimal" min="0" step="0.01" value="0"></div></label>
+        </div>
+      </fieldset>
+    </form>
+
+    <section class="resultado" aria-live="polite">
+      <div class="abas" role="tablist" aria-label="Tipo de cálculo">
+        <button role="tab" id="aba-mensal" aria-selected="true" aria-controls="painel-mensal">Mensal</button>
+        <button role="tab" id="aba-13" aria-selected="false" aria-controls="painel-13" tabindex="-1">13º salário</button>
+        <button role="tab" id="aba-ferias" aria-selected="false" aria-controls="painel-ferias" tabindex="-1">Férias</button>
+      </div>
+
+      <!-- MENSAL -->
+      <div id="painel-mensal" class="painel" role="tabpanel" aria-labelledby="aba-mensal">
+        <div class="card destaque">
+          <span class="rotulo">Salário líquido</span>
+          <strong id="liquido" class="grande">R$ 0,00</strong>
+          <div class="mini">
+            <div><span>Bruto</span><b id="bruto">R$ 0,00</b></div>
+            <div><span>Descontos</span><b id="totalDescontos">R$ 0,00</b></div>
+            <div><span>Descontos / bruto</span><b id="pctDescontos">0%</b></div>
+          </div>
+          <div class="barra" id="barra" role="img" aria-label="Distribuição do salário bruto"></div>
+          <ul class="legenda" id="legenda"></ul>
+        </div>
+
+        <div class="card">
+          <h2>Contracheque</h2>
+          <table class="tabela">
+            <thead><tr><th>Descrição</th><th class="num">Proventos</th><th class="num">Descontos</th></tr></thead>
+            <tbody id="contracheque"></tbody>
+            <tfoot id="contrachequeTotal"></tfoot>
+          </table>
+          <p class="nota">FGTS (8%, depositado pelo empregador, não é descontado de você): <b id="fgts">R$ 0,00</b></p>
+        </div>
+
+        <details class="card">
+          <summary>Como foram calculados o INSS e o IRRF</summary>
+          <h3>INSS (alíquotas progressivas)</h3>
+          <table class="tabela pequena">
+            <thead><tr><th>Faixa</th><th class="num">Alíq.</th><th class="num">Base</th><th class="num">INSS</th></tr></thead>
+            <tbody id="detalheInss"></tbody>
+          </table>
+          <h3>IRRF</h3>
+          <dl class="def" id="detalheIrrf"></dl>
+        </details>
+      </div>
+
+      <!-- 13º -->
+      <div id="painel-13" class="painel" role="tabpanel" aria-labelledby="aba-13" hidden>
+        <div class="card">
+          <label class="campo">
+            <span>Meses trabalhados no ano (avos)</span>
+            <input id="avos" type="number" inputmode="numeric" min="1" max="12" step="1" value="12">
+          </label>
+          <p class="nota">Base: remuneração bruta do mês informada ao lado (salário + adicionais + variáveis).</p>
+        </div>
+        <div class="card destaque">
+          <span class="rotulo">13º líquido</span>
+          <strong id="liquido13" class="grande">R$ 0,00</strong>
+          <div class="mini">
+            <div><span>1ª parcela (até 30/11)</span><b id="parcela1">R$ 0,00</b></div>
+            <div><span>2ª parcela (até 20/12)</span><b id="parcela2">R$ 0,00</b></div>
+            <div><span>13º bruto</span><b id="bruto13">R$ 0,00</b></div>
+          </div>
+        </div>
+        <div class="card">
+          <table class="tabela">
+            <tbody id="tabela13"></tbody>
+          </table>
+          <p class="nota">A 1ª parcela é um adiantamento de 50% sem descontos. INSS e IRRF incidem integralmente na 2ª parcela.</p>
+        </div>
+      </div>
+
+      <!-- FÉRIAS -->
+      <div id="painel-ferias" class="painel" role="tabpanel" aria-labelledby="aba-ferias" hidden>
+        <div class="card">
+          <label class="campo">
+            <span>Dias de férias</span>
+            <input id="diasFerias" type="number" inputmode="numeric" min="5" max="30" step="1" value="30">
+          </label>
+          <p class="nota">Base: remuneração bruta do mês informada ao lado, mais 1/3 constitucional.</p>
+        </div>
+        <div class="card destaque">
+          <span class="rotulo">Férias líquidas</span>
+          <strong id="liquidoFerias" class="grande">R$ 0,00</strong>
+          <div class="mini">
+            <div><span>Férias + 1/3</span><b id="brutoFerias">R$ 0,00</b></div>
+            <div><span>INSS</span><b id="inssFerias">R$ 0,00</b></div>
+            <div><span>IRRF</span><b id="irrfFerias">R$ 0,00</b></div>
+          </div>
+        </div>
+        <div class="card">
+          <table class="tabela">
+            <tbody id="tabelaFerias"></tbody>
+          </table>
+          <p class="nota">Estimativa: INSS e IRRF são calculados isoladamente. Na folha real, o INSS soma férias e salário do mês e respeita o teto.</p>
+        </div>
+      </div>
+
+      <p class="aviso">
+        Simulação informativa, com as tabelas de <b id="anoTabelas">2026</b>. O valor real pode variar conforme convenção coletiva,
+        médias de variáveis e regras específicas do seu empregador. Confira sempre com o RH ou contador.
+      </p>
+    </section>
+  </main>
+
+  <script src="js/calc.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
