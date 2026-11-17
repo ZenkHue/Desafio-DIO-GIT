@@ -1,0 +1,49 @@
+{
+  "ambiente": {
+    "largura": 4,
+    "comprimento": 5,
+    "peDireito": 2.7
+  },
+  "clima": {
+    "cidade": "sao-paulo"
+  },
+  "paredes": {
+    "O": {
+      "tipo": "externa",
+      "janela": {
+        "largura": 1.5,
+        "altura": 1.2,
+        "vidro": "comum",
+        "protecao": "nenhuma"
+      }
+    }
+  },
+  "cobertura": {
+    "tipo": "atico"
+  },
+  "pessoas": {
+    "quantidade": 2,
+    "atividade": "escritorio"
+  },
+  "equipamentos": [
+    {
+      "nome": "Notebook",
+      "qtd": 1,
+      "watts": 65
+    }
+  ],
+  "moveis": [
+    {
+      "tipo": "mesa",
+      "x": 2.8,
+      "z": 0.5,
+      "rot": 0
+    },
+    {
+      "tipo": "sofa",
+      "x": 1.6,
+      "z": 4.5,
+      "rot": 0
+    }
+  ]
+}

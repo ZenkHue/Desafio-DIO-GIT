@@ -1,7 +1,15 @@
-# Simulador de Salário Líquido (CLT)
+# Simuladores: Salário Líquido CLT e Calculadora de Ar-condicionado
 
-App web que simula o salário líquido de um trabalhador CLT, com as tabelas de **2026**.
-Feito em HTML, CSS e JavaScript puros, sem build e sem dependências.
+Duas ferramentas em um PWA, feitas em HTML, CSS e JavaScript puros, sem build e sem backend:
+
+1. **Salário líquido (CLT)**: `index.html`
+2. **Calculadora térmica de ar-condicionado** com 3D e sugestão de instalação: `ar-condicionado.html`
+
+---
+
+## Simulador de Salário Líquido (CLT)
+
+Simula o salário líquido de um trabalhador CLT, com as tabelas de **2026**.
 
 ## O que calcula
 
@@ -11,6 +19,30 @@ Feito em HTML, CSS e JavaScript puros, sem build e sem dependências.
 - **Descontos**: vale-transporte (6%, limitado ao custo real), vale-refeição, plano de saúde, pensão e outros.
 - **FGTS** (8%, depósito do empregador), **13º salário** (1ª e 2ª parcelas) e **férias + 1/3**.
 
+## Calculadora Térmica de Ar-condicionado
+
+Calcula a **carga térmica (BTU/h)** de um ambiente e recomenda a capacidade comercial, **mostra o ambiente em 3D** e **sugere onde instalar** a evaporadora e a condensadora.
+
+- **Carga por componente** na hora de pico: paredes (por orientação, cor e material), janelas (vidro e proteção solar), cobertura, pessoas (sensível + latente), equipamentos, iluminação, infiltração e renovação de ar. Margem de segurança ajustável.
+- **Clima de projeto** por cidade (valores de referência aproximados, editáveis), uso diurno ou noturno.
+- **Visualização 3D** (Three.js): paredes com **mapa de calor**, janelas e proteções, móveis, evaporadora com **jato de ar animado**, condensadora, tubulação e alternativas clicáveis. Vistas isométrica, superior e frontal.
+- **Planta 2D interativa**: arraste cama, mesa e sofá; o sugestor evita soprar direto neles.
+- **Onde instalar**: pontua posições em cada parede (cobertura do ar, conforto, instalação e tubulação, proximidade da carga, porta e cantos) e explica motivos e alertas.
+- **Consultor "e se?"**: quanto cada melhoria (proteção solar externa, película, isolar a cobertura, LED...) reduz a carga, recalculando o ambiente inteiro.
+- **Energia**: estimativa de consumo e custo mensal (inverter × convencional).
+
+Leia o **[estudo técnico](docs/estudo-carga-termica.md)** com método, equações, premissas e o grau de confiança de cada dado.
+
+### Agente especialista
+
+`.claude/agents/especialista-ar-condicionado.md` define um subagente do Claude Code (invoque pelo nome ou peça "use o especialista em ar-condicionado") que levanta os dados do ambiente, calcula pelo **mesmo motor do app** via CLI e responde com carga, equipamento, posição e melhorias, sempre explicitando premissas e incertezas.
+
+```bash
+node scripts/carga-termica.js scripts/exemplos/sala-oeste.json   # resumo em texto
+node scripts/carga-termica.js caso.json --json                    # resultado completo
+node scripts/carga-termica.js --exemplo                           # modelo de entrada
+```
+
 ## Como usar
 
 ```bash
@@ -18,7 +50,7 @@ npm start        # serve em http://localhost:8080 (python3 -m http.server)
 npm test         # testes do núcleo de cálculo (Node 18+)
 ```
 
-Também dá para abrir o `index.html` direto no navegador.
+As páginas usam módulos ES e importmap (3D), então sirva por HTTP (`npm start`) em vez de abrir o arquivo direto.
 
 ## Instalar no Android (PWA)
 
@@ -39,9 +71,15 @@ Ao mudar qualquer arquivo do app, incremente `CACHE` em `sw.js` para os aparelho
 
 | Arquivo | Função |
 |---|---|
-| `js/calc.js` | Regras de cálculo e tabelas (`TABELAS`), sem acesso ao DOM |
-| `js/app.js` | Interface: leitura do formulário e renderização |
-| `tests/calc.test.js` | Testes (`node:test`) |
+| `js/calc.js`, `js/app.js` | Salário líquido: regras e tabelas (`TABELAS`) e interface |
+| `js/thermal.js` | Carga térmica, psicrometria, dimensionamento, "e se?" e energia (sem DOM) |
+| `js/placement.js` | Pontuação das posições da evaporadora (sem DOM) |
+| `js/room3d.js`, `js/planta.js`, `js/ar-app.js` | Visualização 3D, planta 2D e interface da calculadora térmica |
+| `vendor/` | three.js r170 e OrbitControls (MIT), embarcados para funcionar offline |
+| `scripts/carga-termica.js` | CLI do motor térmico (usada pelo agente) |
+| `docs/estudo-carga-termica.md` | Estudo técnico |
+| `.claude/agents/` | Agente especialista |
+| `tests/*.test.js` | Testes (`node:test`) dos três módulos de cálculo |
 | `manifest.webmanifest`, `sw.js`, `icons/` | PWA: instalação, cache offline e ícones |
 
 Para atualizar a cada ano, edite apenas o objeto `TABELAS` em `js/calc.js`.

@@ -58,6 +58,16 @@ body {
   background: rgb(255 255 255 / 20%);
 }
 
+/* Navegação entre ferramentas */
+.nav { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.nav a {
+  color: var(--brand-ink); text-decoration: none; font-weight: 600; font-size: .9rem;
+  padding: 6px 14px; border-radius: 999px; background: rgb(255 255 255 / 14%);
+}
+.nav a[aria-current=page] { background: #fff; color: var(--brand); }
+@media (prefers-color-scheme: dark) { .nav a[aria-current=page] { background: var(--brand-ink); color: var(--brand); } }
+.nav a:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);

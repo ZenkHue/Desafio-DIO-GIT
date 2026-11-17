@@ -1,0 +1,19 @@
+{
+  "ambiente": { "largura": 6, "comprimento": 5, "peDireito": 2.8 },
+  "clima": { "cidade": "rio-de-janeiro" },
+  "paredes": {
+    "N": { "tipo": "interna_nc" },
+    "L": { "tipo": "interna_nc" },
+    "S": { "tipo": "externa", "janela": { "largura": 3, "altura": 1.4, "vidro": "fume", "protecao": "cortina" } },
+    "O": { "tipo": "externa", "janela": { "largura": 2, "altura": 1.4, "vidro": "fume", "protecao": "cortina" } }
+  },
+  "cobertura": { "tipo": "andar_c" },
+  "pessoas": { "quantidade": 6, "atividade": "escritorio" },
+  "equipamentos": [
+    { "nome": "Computador + monitor", "qtd": 6, "watts": 200 },
+    { "nome": "Impressora", "qtd": 1, "watts": 50 }
+  ],
+  "iluminacao": "fluorescente",
+  "ar": { "infiltracao": "normal", "ventilacao": true },
+  "moveis": [{ "tipo": "mesa", "x": 1.5, "z": 1, "rot": 0 }, { "tipo": "mesa", "x": 4.5, "z": 1, "rot": 0 }, { "tipo": "mesa", "x": 3, "z": 3, "rot": 0 }]
+}

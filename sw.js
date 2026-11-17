@@ -1,12 +1,21 @@
-/* Service worker: guarda o app no aparelho para funcionar offline.
+/* Service worker: guarda os apps no aparelho para funcionar offline.
  * Ao alterar qualquer arquivo do app, incremente CACHE para forçar a atualização. */
-const CACHE = 'salario-clt-v1';
+const CACHE = 'ferramentas-v2';
 const ARQUIVOS = [
   './',
   './index.html',
+  './ar-condicionado.html',
   './css/style.css',
+  './css/ar.css',
   './js/calc.js',
   './js/app.js',
+  './js/thermal.js',
+  './js/placement.js',
+  './js/room3d.js',
+  './js/planta.js',
+  './js/ar-app.js',
+  './vendor/three.module.min.js',
+  './vendor/OrbitControls.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
