@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calculadora Térmica de Ar-Condicionado</title>
+  <meta name="description" content="Calcule a carga térmica e a capacidade (BTU/h) do ar-condicionado, veja o ambiente em 3D e descubra o melhor lugar para instalar.">
+  <meta name="theme-color" content="#0b6e4f">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/ar.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js" } }
+  </script>
+</head>
+<body class="pagina-ar">
+  <header class="topo">
+    <div class="wrap">
+      <h1>Calculadora Térmica <span class="selo">Ar-condicionado</span></h1>
+      <p>Carga térmica em BTU/h, visualização 3D do ambiente e sugestão de onde instalar o split.</p>
+      <nav class="nav" aria-label="Ferramentas">
+        <a href="index.html">Salário líquido</a>
+        <a href="ar-condicionado.html" aria-current="page">Ar-condicionado</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap layout-ar">
+    <!-- ================= FORMULÁRIO ================= -->
+    <form id="form" class="coluna-form" autocomplete="off" novalidate>
+      <section class="card">
+        <h2 class="passo"><span>1</span> Ambiente e clima</h2>
+        <div class="grade tres">
+          <label class="campo"><span>Largura L–O (m)</span><input id="largura" type="number" inputmode="decimal" min="1" max="50" step="0.1" value="4"></label>
+          <label class="campo"><span>Comprimento N–S (m)</span><input id="comprimento" type="number" inputmode="decimal" min="1" max="50" step="0.1" value="5"></label>
+          <label class="campo"><span>Pé-direito (m)</span><input id="peDireito" type="number" inputmode="decimal" min="2" max="6" step="0.05" value="2.7"></label>
+        </div>
+        <small class="dica">A largura é a medida leste–oeste; o comprimento, norte–sul. As paredes ficam alinhadas aos pontos cardeais.</small>
+        <div class="grade">
+          <label class="campo"><span>Cidade (clima de projeto)</span><select id="cidade"></select></label>
+          <label class="campo"><span>Período de uso</span>
+            <select id="uso">
+              <option value="integral" selected>Dia / uso integral (pico)</option>
+              <option value="noite">Só à noite (dormitório)</option>
+            </select>
+          </label>
+        </div>
+        <details class="avancado">
+          <summary>Ajustar temperaturas de projeto</summary>
+          <div class="grade">
+            <label class="campo"><span>Temp. externa (°C)</span><input id="tbsExt" type="number" inputmode="decimal" step="0.5" placeholder="da cidade"></label>
+            <label class="campo"><span>Umidade externa (%)</span><input id="urExt" type="number" inputmode="decimal" step="1" placeholder="da cidade"></label>
+            <label class="campo"><span>Temp. interna (°C)</span><input id="tbsInt" type="number" inputmode="decimal" step="0.5" value="24"></label>
+            <label class="campo"><span>Umidade interna (%)</span><input id="urInt" type="number" inputmode="decimal" step="1" value="50"></label>
+          </div>
+          <small class="dica">As temperaturas das cidades são valores de referência aproximados. Se você tem o dado da NBR 16401-1 para a sua cidade, informe aqui.</small>
+        </details>
+      </section>
+
+      <section class="card">
+        <h2 class="passo"><span>2</span> Paredes, janelas e porta</h2>
+        <div id="paredes"></div>
+        <div class="grade tres porta">
+          <label class="campo"><span>Porta na parede</span><select id="portaParede"></select></label>
+          <label class="campo"><span>Posição na parede (%)</span><input id="portaPos" type="range" min="10" max="90" step="5" value="85"></label>
+          <label class="campo"><span>Largura da porta (m)</span><input id="portaLargura" type="number" inputmode="decimal" min="0.6" max="2" step="0.1" value="0.8"></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="passo"><span>3</span> Cobertura</h2>
+        <div class="grade">
+          <label class="campo"><span>O que há acima do teto?</span><select id="coberturaTipo"></select></label>
+          <label class="campo"><span>Cor da cobertura</span>
+            <select id="coberturaCor"><option value="clara">Clara</option><option value="media" selected>Média</option><option value="escura">Escura</option></select>
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="passo"><span>4</span> Pessoas, equipamentos e ar</h2>
+        <div class="grade">
+          <label class="campo"><span>Número de pessoas</span><input id="pessoas" type="number" inputmode="numeric" min="0" step="1" value="2"></label>
+          <label class="campo"><span>Atividade</span><select id="atividade"></select></label>
+        </div>
+        <div class="campo">
+          <span class="rotulo-campo">Equipamentos que geram calor</span>
+          <div id="equipamentos" class="equip"></div>
+          <div class="equip-add">
+            <select id="equipPreset" aria-label="Equipamento a adicionar"></select>
+            <button type="button" id="equipAdd" class="btn">+ Adicionar</button>
+          </div>
+        </div>
+        <div class="grade">
+          <label class="campo"><span>Iluminação</span><select id="iluminacao"></select></label>
+          <label class="campo"><span>Vedação / infiltração de ar</span><select id="infiltracao"></select></label>
+        </div>
+        <label class="check"><input id="ventilacao" type="checkbox"><span>Tem renovação de ar mecânica (ar externo forçado)</span></label>
+        <label class="campo"><span>Margem de segurança: <b id="segurancaVal">10%</b></span><input id="seguranca" type="range" min="0" max="25" step="1" value="10"></label>
+      </section>
+
+      <section class="card">
+        <h2 class="passo"><span>5</span> Energia (estimativa)</h2>
+        <div class="grade tres">
+          <label class="campo"><span>Horas por dia</span><input id="horasDia" type="number" inputmode="decimal" min="0" max="24" step="0.5" value="8"></label>
+          <label class="campo"><span>Tarifa (R$/kWh)</span><input id="tarifa" type="number" inputmode="decimal" min="0" step="0.01" value="0.95"></label>
+          <label class="campo"><span>Tecnologia</span><select id="tecnologia"><option value="inverter">Inverter</option><option value="convencional">Convencional</option></select></label>
+        </div>
+      </section>
+    </form>
+
+    <!-- ================= RESULTADOS ================= -->
+    <div class="coluna-res" aria-live="polite">
+      <section class="card destaque" id="resumo">
+        <span class="rotulo">Carga térmica de projeto</span>
+        <strong id="btu" class="grande">0 BTU/h</strong>
+        <div class="recomendado">
+          <div>
+            <span class="rotulo">Equipamento sugerido</span>
+            <b id="equipTexto">—</b>
+            <small id="equipTipo"></small>
+          </div>
+        </div>
+        <div class="mini quatro">
+          <div><span>Potência</span><b id="kw">0 kW</b></div>
+          <div><span>Toneladas (TR)</span><b id="tr">0</b></div>
+          <div><span>BTU/h por m²</span><b id="btuM2">0</b></div>
+          <div><span>Calor sensível</span><b id="shr">0%</b></div>
+        </div>
+        <p class="nota" id="comparacao"></p>
+      </section>
+
+      <section class="card">
+        <div class="cab-card">
+          <h2>Visualização 3D</h2>
+          <div class="ferramentas" role="toolbar" aria-label="Controles da visualização 3D">
+            <button type="button" class="btn pequeno" data-vista="iso">Isométrica</button>
+            <button type="button" class="btn pequeno" data-vista="topo">Superior</button>
+            <button type="button" class="btn pequeno" data-vista="sul">Frontal</button>
+            <label class="check mini-check"><input id="optCalor" type="checkbox" checked><span>Mapa de calor</span></label>
+            <label class="check mini-check"><input id="optTeto" type="checkbox"><span>Teto</span></label>
+            <label class="check mini-check"><input id="optGirar" type="checkbox"><span>Girar</span></label>
+          </div>
+        </div>
+        <div id="viz3d" class="viz" role="img" aria-label="Modelo 3D do ambiente com a posição sugerida do ar-condicionado"></div>
+        <div class="legenda-calor" id="legendaCalor" aria-hidden="true">
+          <span>Menos calor</span><i></i><span>Mais calor</span>
+        </div>
+        <p class="nota">Arraste para girar, role/pince para aproximar. Toque nos números verdes para comparar posições.</p>
+      </section>
+
+      <section class="card">
+        <h2>Onde instalar o ar-condicionado</h2>
+        <div id="posicoes" class="posicoes"></div>
+        <details class="avancado">
+          <summary>Boas práticas de instalação</summary>
+          <ul class="lista" id="boasPraticas"></ul>
+        </details>
+      </section>
+
+      <section class="card">
+        <div class="cab-card">
+          <h2>Planta e móveis</h2>
+          <div class="ferramentas">
+            <button type="button" class="btn pequeno" data-item="cama">+ Cama</button>
+            <button type="button" class="btn pequeno" data-item="mesa">+ Mesa</button>
+            <button type="button" class="btn pequeno" data-item="sofa">+ Sofá</button>
+            <button type="button" class="btn pequeno" id="itemGirar" disabled>Girar</button>
+            <button type="button" class="btn pequeno perigo" id="itemRemover" disabled>Remover</button>
+          </div>
+        </div>
+        <div id="planta" class="planta"></div>
+        <p class="nota">Norte para cima. Arraste os móveis para a posição real: o sugestor evita soprar direto neles. Toque num móvel para girar ou remover.</p>
+      </section>
+
+      <section class="card">
+        <h2>Consultor técnico</h2>
+        <div id="consultor"></div>
+      </section>
+
+      <section class="card">
+        <h2>De onde vem a carga térmica</h2>
+        <div id="detalhe"></div>
+        <p class="nota" id="energiaTexto"></p>
+      </section>
+
+      <p class="aviso">
+        Pré-dimensionamento para split residencial/comercial pequeno, com método simplificado e valores de referência aproximados
+        (<a href="https://github.com/ZenkHue/Desafio-DIO-GIT/blob/main/docs/estudo-carga-termica.md" target="_blank" rel="noopener">leia o estudo e as premissas</a>). Não substitui projeto de um profissional habilitado
+        conforme a ABNT NBR 16401. Confirme limites de tubulação e alcance no manual do fabricante.
+      </p>
+    </div>
+  </main>
+
+  <a class="barra-fixa" href="#resumo" aria-label="Ir para o resultado">
+    <span><b id="barraBtu">0 BTU/h</b> <small id="barraEquip"></small></span><span aria-hidden="true">Ver resultado ↓</span>
+  </a>
+
+  <script src="js/thermal.js"></script>
+  <script src="js/placement.js"></script>
+  <script type="module" src="js/ar-app.js"></script>
+</body>
+</html>
