@@ -55,11 +55,11 @@
 
   // dTsol: acréscimo de temperatura equivalente por radiação solar (K) para cor média, hora de pico.
   const COBERTURAS = {
-    exposta: { rotulo: 'Laje exposta ao sol (sem forro / sem isolamento)', U: 3.0, dTsol: 18, amort: 0.8 },
-    atico: { rotulo: 'Telhado com forro / ático ventilado', U: 1.5, dTsol: 8, amort: 0.9 },
-    isolada: { rotulo: 'Cobertura com isolamento térmico', U: 0.6, dTsol: 8, amort: 0.9 },
-    andar_nc: { rotulo: 'Andar acima NÃO condicionado', U: 2.5, dTsol: 0, amort: 1, interna: true },
-    andar_c: { rotulo: 'Andar acima condicionado (sem carga)', U: 0, dTsol: 0, amort: 1, nula: true },
+    exposta: { rotulo: 'Laje descoberta, sem telhado (sol direto)', U: 3.0, dTsol: 18, amort: 0.8 },
+    atico: { rotulo: 'Laje ou forro com telhado por cima (ático)', U: 1.5, dTsol: 8, amort: 0.9 },
+    isolada: { rotulo: 'Cobertura com isolamento térmico (manta, lã, EPS)', U: 0.6, dTsol: 8, amort: 0.9 },
+    andar_nc: { rotulo: 'Outro andar acima, sem ar-condicionado', U: 2.5, dTsol: 0, amort: 1, interna: true },
+    andar_c: { rotulo: 'Outro andar acima, climatizado (sem carga)', U: 0, dTsol: 0, amort: 1, nula: true },
   };
 
   const DT_SOL_PAREDE = { N: 3, S: 1, L: 5, O: 8 }; // K, cor média
