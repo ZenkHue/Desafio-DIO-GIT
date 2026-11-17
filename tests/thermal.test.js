@@ -295,3 +295,14 @@ test('janela: valores absurdos são limitados (peitoril alto, janela perto do ca
   assert.ok(j.pos * 4 - meia >= -1e-9 && j.pos * 4 + meia <= 4 + 1e-9, 'janela inteira dentro da parede');
   assert.ok(j.largura <= 3.6);
 });
+
+test('telhado direto (sem laje nem forro) é a cobertura mais quente', () => {
+  const c = (tipo) => T.calcular(vazio({ cobertura: { tipo } })).itens.find((i) => i.id === 'cobertura').sensivel;
+  assert.ok(c('telhado_direto') > c('exposta'), 'pior que laje descoberta');
+  assert.ok(c('telhado_direto') > 2 * c('atico'), 'forro corta mais da metade');
+  const ops = T.oportunidades({ cobertura: { tipo: 'telhado_direto' } });
+  const forro = ops.find((o) => o.id === 'forro');
+  assert.ok(forro && forro.reducaoBTU > 2000, 'sugere instalar forro, com ganho grande');
+  assert.equal(ops[0].id, 'isolamento-cobertura', 'isolar é a melhor das opções para quem tem telha à vista');
+  assert.ok(ops.some((o) => o.id === 'cobertura-clara'));
+});
