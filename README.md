@@ -23,6 +23,7 @@ Simula o salário líquido de um trabalhador CLT, com as tabelas de **2026**.
 
 Diz **quantos BTUs** o ambiente precisa, mostra **de onde vem o calor hora a hora** e **onde instalar** o aparelho, com o ambiente em 3D.
 
+- **Qualquer cidade do Brasil:** busca entre os 5.570 municípios (sem precisar de acento). O sol usa a latitude exata, e o clima é estimado pelas cidades de referência mais próximas, com a origem mostrada na tela.
 - **Do jeito que o brasileiro fala:** tipo de ambiente (quarto, sala, cozinha…), "a parede pega sol de manhã, à tarde ou o dia todo?", "o que tem em cima? laje com telhado, só telha, outro andar…", "quando o ar fica ligado?". Quem sabe a orientação pode usar a bússola.
 - **Cálculo hora a hora (0h–23h)**, como os softwares profissionais: sol na posição real para a latitude da cidade, temperatura variando no dia, atraso térmico das paredes (o sol da tarde vira calor à noite), sol pelas janelas com séries radiantes (RTS), vizinhos e andares, pessoas, aparelhos com horário de uso, ar de fora e **carga de partida** (o calor acumulado quando o ar fica desligado).
 - **Rendimento real do aparelho:** a etiqueta vale para 27 °C dentro e 35 °C fora; a 23 °C ele rende ~10% menos, e o app já desconta isso.

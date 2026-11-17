@@ -1,6 +1,6 @@
 /* Service worker: guarda os apps no aparelho para funcionar offline.
  * Ao alterar qualquer arquivo do app, incremente CACHE para forçar a atualização. */
-const CACHE = 'ferramentas-v6';
+const CACHE = 'ferramentas-v7';
 const ARQUIVOS = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const ARQUIVOS = [
   './css/ar.css',
   './js/calc.js',
   './js/app.js',
+  './js/ar/municipios.js',
   './js/ar/nucleo.js',
   './js/ar/posicao.js',
   './js/ar/app.js',

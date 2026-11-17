@@ -236,3 +236,47 @@ test('tipos de ambiente aplicam pessoas, horário e aparelhos típicos', () => {
   assert.equal(q.uso.fim, 18);
   assert.equal(q.aparelhos.pc, 1);
 });
+
+/* ------------------------------------------------------------------ cidades */
+const M = require('../js/ar/municipios.js');
+
+test('municípios: base completa e busca sem acento, com ou sem UF', () => {
+  assert.ok(M.LISTA.length >= 5570);
+  for (const m of M.LISTA) assert.ok(Number.isFinite(m.lat) && Number.isFinite(m.lon) && m.uf.length === 2, m.nome);
+  assert.equal(M.buscar('salto de pirapora')[0].codigo, 3545308);
+  assert.equal(M.buscar('SAO PAULO')[0].nome, 'São Paulo');
+  assert.equal(M.buscar('Salto/SP')[0].nome, 'Salto');
+  assert.ok(M.buscar('Pirapora').some((m) => m.uf === 'MG'));
+  assert.deepEqual(M.buscar('cidade que nao existe'), []);
+});
+
+test('cidade: aceita referência, código IBGE e nome; inválida volta para São Paulo', () => {
+  assert.equal(N.resolverCidade('sao-paulo'), 'sao-paulo');
+  assert.equal(N.resolverCidade('ibge:3545308'), 'ibge:3545308');
+  assert.equal(N.resolverCidade('Salto de Pirapora/SP'), 'ibge:3545308');
+  assert.equal(N.resolverCidade('ibge:0000000'), null);
+  assert.equal(N.normalizar({ cidade: 'xyzxyz' }).cidade, 'sao-paulo');
+});
+
+test('cidade fora da lista: latitude exata e clima estimado entre as referências mais próximas', () => {
+  const c = N.climaDaCidade('ibge:3545308'); // Salto de Pirapora
+  assert.equal(c.nome, 'Salto de Pirapora (SP)');
+  near(c.lat, -23.6474, 1e-4);
+  assert.ok(c.estimado);
+  assert.equal(c.fontes[0].nome, 'Sorocaba (SP)');
+  const ts = c.fontes.map((f) => Object.values(N.CIDADES).find((x) => x.nome === f.nome).tmax);
+  assert.ok(c.tmax >= Math.min(...ts) && c.tmax <= Math.max(...ts), 'média ponderada fica entre as referências');
+  const perto = N.climaDaCidade(N.resolverCidade('Votorantim/SP'));
+  assert.equal(perto.fontes.length, 1, 'a menos de 15 km usa a referência direto');
+  const r = N.calcular({ cidade: 'ibge:3545308' });
+  assert.equal(r.clima.cidade, 'Salto de Pirapora (SP)');
+  near(r.clima.lat, -23.6474, 1e-4);
+});
+
+test('cidades de referência: coordenadas batem com a base de municípios', () => {
+  for (const [k, c] of Object.entries(N.CIDADES)) {
+    const m = M.porCodigo(c.ibge);
+    assert.ok(m, k);
+    near(N.distanciaKm(c.lat, c.lon, m.lat, m.lon), 0, 0.5, k);
+  }
+});
