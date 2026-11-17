@@ -1,15 +1,62 @@
 {
-  "ambiente": { "largura": 3, "comprimento": 4, "peDireito": 2.6 },
-  "clima": { "cidade": "sao-paulo", "uso": "noite" },
-  "paredes": {
-    "N": { "tipo": "interna_nc" },
-    "L": { "tipo": "externa", "cor": "clara", "janela": { "largura": 1.2, "altura": 1.1, "vidro": "comum", "protecao": "cortina" } },
-    "S": { "tipo": "interna_nc" },
-    "O": { "tipo": "interna_nc" }
+  "ambiente": {
+    "largura": 3,
+    "comprimento": 4,
+    "peDireito": 2.6
   },
-  "cobertura": { "tipo": "andar_c" },
-  "porta": { "parede": "O", "pos": 0.8, "largura": 0.8 },
-  "pessoas": { "quantidade": 2, "atividade": "repouso" },
-  "equipamentos": [{ "nome": "TV", "qtd": 1, "watts": 100 }],
-  "moveis": [{ "tipo": "cama", "x": 1.5, "z": 2.9, "rot": 0 }]
+  "clima": {
+    "cidade": "sao-paulo",
+    "uso": "noite"
+  },
+  "paredes": {
+    "N": {
+      "tipo": "interna_nc"
+    },
+    "L": {
+      "tipo": "externa",
+      "cor": "clara",
+      "janela": {
+        "largura": 1.2,
+        "altura": 1.1,
+        "vidro": "comum",
+        "protecao": "cortina"
+      }
+    },
+    "S": {
+      "tipo": "interna_nc",
+      "porta": {
+        "ativa": false
+      }
+    },
+    "O": {
+      "tipo": "interna_nc",
+      "porta": {
+        "ativa": true,
+        "largura": 0.8,
+        "pos": 0.8
+      }
+    }
+  },
+  "cobertura": {
+    "tipo": "andar_c"
+  },
+  "pessoas": {
+    "quantidade": 2,
+    "atividade": "repouso"
+  },
+  "equipamentos": [
+    {
+      "nome": "TV",
+      "qtd": 1,
+      "watts": 100
+    }
+  ],
+  "moveis": [
+    {
+      "tipo": "cama",
+      "x": 1.5,
+      "z": 2.9,
+      "rot": 0
+    }
+  ]
 }

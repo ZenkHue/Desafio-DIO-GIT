@@ -151,7 +151,10 @@
       }
     }
 
-    const porta = e.porta || null;
+    // todas as portas do ambiente (cada parede pode ter uma)
+    const portas = ['N', 'S', 'L', 'O']
+      .filter((q) => e.paredes[q].porta && e.paredes[q].porta.ativa)
+      .map((q) => ({ parede: q, pos: e.paredes[q].porta.pos, largura: e.paredes[q].porta.largura }));
     const candidatos = [];
     for (const k of ['N', 'S', 'L', 'O']) {
       const ref = referencial(k, W, L);
@@ -234,21 +237,27 @@
 
         // 5) layout
         let pLay = 15;
-        if (porta && porta.parede === k) {
-          const sPorta = limitar(porta.pos, 0, 1) * ref.len;
-          if (Math.abs(s - sPorta) < 1.2 + larguraUn / 2) {
-            pLay -= 8;
-            alertas.push('Muito perto da porta: o ar frio escapa e entra ar quente');
+        let pertoPorta = false;
+        let jatoPorta = false;
+        for (const porta of portas) {
+          if (porta.parede === k) {
+            const sPorta = limitar(porta.pos, 0, 1) * ref.len;
+            if (Math.abs(s - sPorta) < 1.2 + larguraUn / 2 + porta.largura / 2 - 0.4) pertoPorta = true;
+          } else {
+            const refP = referencial(porta.parede, W, L);
+            const pp = refP.ponto(limitar(porta.pos, 0, 1) * refP.len);
+            const f = (pp.x - ponto.x) * n.x + (pp.z - ponto.z) * n.z;
+            const lat = Math.abs((pp.x - ponto.x) * -n.z + (pp.z - ponto.z) * n.x);
+            if (f > 1 && lat < f * TAN_DIRETO + 0.4) jatoPorta = true;
           }
-        } else if (porta) {
-          const refP = referencial(porta.parede, W, L);
-          const pp = refP.ponto(limitar(porta.pos, 0, 1) * refP.len);
-          const f = (pp.x - ponto.x) * n.x + (pp.z - ponto.z) * n.z;
-          const lat = Math.abs((pp.x - ponto.x) * -n.z + (pp.z - ponto.z) * n.x);
-          if (f > 1 && lat < f * TAN_DIRETO + 0.4) {
-            pLay -= 3;
-            alertas.push('Jato aponta para a porta');
-          }
+        }
+        if (pertoPorta) {
+          pLay -= 8;
+          alertas.push('Muito perto da porta: o ar frio escapa e entra ar quente');
+        }
+        if (jatoPorta) {
+          pLay -= 3;
+          alertas.push('Jato aponta para a porta');
         }
         const frac = s / ref.len;
         if (frac < 0.25 || frac > 0.75) pLay -= 3;

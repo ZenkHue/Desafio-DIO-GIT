@@ -11,7 +11,7 @@ Documento de apoio da **Calculadora Térmica** (`ar-condicionado.html`). Explica
 - **Problema.** Escolher um ar-condicionado pela regra "600 BTU/h por m²" ignora sol, cobertura, janelas e ocupação. O erro pode passar de 30% para mais ou para menos.
 - **Solução adotada.** Soma de cargas por componente na hora de pico (paredes, janelas, cobertura, pessoas, equipamentos, iluminação, ar externo), separando calor **sensível** e **latente**, com margem de segurança e escolha da capacidade comercial.
 - **Diferencial.** O app também (a) mostra o ambiente em 3D com mapa de calor, (b) pontua posições candidatas para a evaporadora e (c) simula "e se?" (proteção solar, isolamento, LED) para mostrar o quanto cada melhoria reduz a carga.
-- **Resultado típico.** Sala 4×5 m com janela a oeste: **11.167 BTU/h** (regra de bolso: 12.000). Com a janela a oeste de 2,5 m e laje exposta: **16.441 BTU/h**, bem acima da regra, porque o sol pesa.
+- **Resultado típico.** Sala 4×5 m com janela a oeste: **11.154 BTU/h** (regra de bolso: 12.000). Com a janela a oeste de 2,5 m e laje exposta: **16.428 BTU/h**, bem acima da regra, porque o sol pesa.
 
 ## 2. Fundamentos
 
@@ -86,7 +86,7 @@ O app escolhe o método simplificado de propósito: é auditável, rápido e suf
 
 ### 5.1 Geometria e convenções
 
-Largura = dimensão **leste–oeste**; comprimento = **norte–sul**. As quatro paredes ficam alinhadas aos pontos cardeais. Cada parede pode ser **externa**, **interna para área não climatizada** ou **interna para ambiente climatizado** (sem carga).
+Largura = dimensão **leste–oeste**; comprimento = **norte–sul**. As quatro paredes ficam alinhadas aos pontos cardeais. Cada parede pode ser **externa**, **interna para área não climatizada** ou **interna para ambiente climatizado** (sem carga). Cada parede aceita uma **janela** e uma **porta**; a posição de ambas é dada em % do comprimento da parede, contado a partir do canto oeste (paredes Norte e Sul) ou norte (paredes Leste e Oeste). Se a porta bater na janela, o motor desloca a porta para o lado que couber.
 
 ### 5.2 Equações por componente
 
@@ -103,6 +103,8 @@ Q = U · A · [ (T_ext − T_int) + ΔT_sol(orientação) · f_cor · f_amort ·
 ```
 Q = U_v · A · (T_ext − T_int)  +  A · SHGF(orientação) · FS_vidro · F_proteção · f_noite
 ```
+
+**Porta:** a área da porta (largura × 2,1 m) é descontada da parede e entra com U próprio: 2,5 W/m²K em porta externa (mesmo ΔT equivalente da parede) e 2,0 W/m²K em porta para área não climatizada (ΔT − 3 K). Porta para ambiente climatizado não gera carga, mas continua no desenho e na avaliação de posição.
 
 **Cobertura:** mesma forma da parede, com U e ΔT_sol próprios (laje exposta, telhado com forro, isolada, andar acima não climatizado, andar acima climatizado = sem carga).
 
@@ -124,6 +126,7 @@ Q = U_v · A · (T_ext − T_int)  +  A · SHGF(orientação) · FS_vidro · F_p
 | U drywall com lã | 0,9 W/m²K | Aproximado |
 | U parede isolada | 0,6 W/m²K | Aproximado |
 | U vidro simples / duplo low-e | 5,8 / 2,8 W/m²K | Valores típicos |
+| U porta de madeira (externa / interna) | 2,5 / 2,0 W/m²K | Aproximado |
 | Fator solar do vidro (FS) | comum 1,0 · fumê 0,6 · película 0,5 · duplo 0,45 | Relativo ao vidro simples |
 | Proteção solar | cortina 0,65 · externa 0,35 | Redutor do ganho solar |
 | ΔT_sol parede (K, cor média) | N 3 · S 1 · L 5 · O 8 | Simplificação de pico, ~23 °S |
@@ -157,14 +160,14 @@ Resultados do próprio motor (`node scripts/carga-termica.js scripts/exemplos/<c
 
 | Caso | Carga | Regra 600/m² | Equipamento | Comentário |
 |---|---|---|---|---|
-| **Sala 4×5 m, janela 1,5×1,2 oeste, telhado com forro, São Paulo** | 11.167 BTU/h (558/m²) | 12.000 | 12.000 | A janela oeste responde por ~28% da carga |
-| **Mesma sala, janela oeste 2,5 m e laje exposta** | 16.441 BTU/h | 12.000 | 18.000 | O sol faz a regra de bolso subdimensionar em ~27% |
-| **Quarto 3×4 m, janela leste, à noite, vizinhos não climatizados** | 3.274 BTU/h | 7.200 | 7.500 inverter | Modelo fica bem abaixo da regra; veja nota abaixo |
-| **Escritório 6×5 m, 6 pessoas, janelas oeste e sul, renovação de ar, Rio** | 25.277 BTU/h (843/m²) | 24.000 | 30.000 | Equipamentos e ar externo dominam |
+| **Sala 4×5 m, janela 1,5×1,2 oeste, telhado com forro, São Paulo** | 11.154 BTU/h (558/m²) | 12.000 | 12.000 | A janela oeste responde por ~28% da carga |
+| **Mesma sala, janela oeste 2,5 m e laje exposta** | 16.428 BTU/h | 12.000 | 18.000 | O sol faz a regra de bolso subdimensionar em ~27% |
+| **Quarto 3×4 m, janela leste, à noite, vizinhos não climatizados** | 3.270 BTU/h | 7.200 | 7.500 inverter | Modelo fica bem abaixo da regra; veja nota abaixo |
+| **Escritório 6×5 m, 6 pessoas, janelas oeste e sul, renovação de ar, Rio** | 25.285 BTU/h (843/m²) | 24.000 | 30.000 | Equipamentos e ar externo dominam |
 
 **Nota sobre o quarto.** A regra de bolso embute folgas generosas e é conservadora para cômodos pequenos. O modelo dá um valor mais baixo porque o ambiente recebe pouco calor externo. A menor unidade comercial (7.500 BTU/h) já cobre a carga com sobra, então a recomendação prática coincide com a da regra, mas o app orienta a usar **inverter** para evitar liga/desliga.
 
-**Testes automatizados** (`npm test`, 55 testes): conversões, equações de psicrometria, cada componente contra cálculo à mão, ordem de importância das orientações (oeste > leste > norte > sul), monotonicidade, entradas inválidas sem `NaN`, escolha de capacidade e coerência entre "e se?" e recálculo direto.
+**Testes automatizados** (`npm test`, 62 testes): conversões, equações de psicrometria, cada componente contra cálculo à mão, ordem de importância das orientações (oeste > leste > norte > sul), monotonicidade, entradas inválidas sem `NaN`, escolha de capacidade e coerência entre "e se?" e recálculo direto.
 
 ## 7. Posicionamento da evaporadora
 
@@ -185,7 +188,7 @@ Resultados do próprio motor (`node scripts/carga-termica.js scripts/exemplos/<c
 | **Conforto** | 25 | Penaliza correnteza direta sobre cama (peso 0,6), mesa (0,45) e sofá (0,35), e unidade acima da cabeceira |
 | **Instalação** | 20 | Parede externa 14 (interna não climatizada 7, vizinho climatizado 2) + bônus pela fachada da condensadora (S +6, L +4, N +2, O 0) |
 | **Proximidade da carga** | 15 | Distância até a maior fonte de calor (janela/parede mais carregada) |
-| **Layout** | 15 | Distância da porta, do canto e jato apontado para a porta |
+| **Layout** | 15 | Distância de **cada** porta, do canto e jato apontado para alguma porta |
 
 Para cada parede o app mostra a **melhor posição**, com motivos e alertas em português. Ele **recomenda** a de maior nota e permite comparar as demais no 3D ou na planta.
 
@@ -214,7 +217,7 @@ Para cada parede o app mostra a **melhor posição**, com motivos e alertas em p
 | Equações de psicrometria, conversões, 0,335 e 0,8336 | Física/termodinâmica | **Alta** |
 | Calor de pessoas em escritório (≈75 + 65 W) | ASHRAE Fundamentals, via fontes secundárias | Média-alta |
 | U de alvenaria cerâmica (2,1 a 2,5) | NBR 15220 / estudos da UFSC (LabEEE) e artigos | Média |
-| U de concreto, drywall, isolada, vidro | Valores típicos de catálogo/literatura | Média-baixa |
+| U de concreto, drywall, isolada, vidro, porta | Valores típicos de catálogo/literatura | Média-baixa |
 | **ΔT_sol e SHGF por orientação** | **Simplificação minha** (inspirada no CLTD/SHGF da ASHRAE para ~23 °S) | **Baixa a média** — valide em projeto |
 | **Clima de projeto por cidade** | **Aproximado** (não extraí as tabelas da NBR 16401-1) | **Baixa a média** — ajuste na interface |
 | Iluminação em W/m², ACH | Valores usuais | Média |

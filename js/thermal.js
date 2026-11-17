@@ -113,13 +113,12 @@
     ambiente: { largura: 4, comprimento: 5, peDireito: 2.7 },
     clima: { cidade: 'sao-paulo', tbsExt: null, urExt: null, tbsInt: 24, urInt: 50, uso: 'integral' },
     paredes: {
-      N: { tipo: 'externa', material: 'alvenaria', cor: 'media', janela: { largura: 0, altura: 1.2, pos: 0.5, peitoril: 1.0, vidro: 'comum', protecao: 'nenhuma' } },
-      S: { tipo: 'interna_nc', material: 'alvenaria', cor: 'media', janela: { largura: 0, altura: 1.2, pos: 0.5, peitoril: 1.0, vidro: 'comum', protecao: 'nenhuma' } },
-      L: { tipo: 'interna_nc', material: 'alvenaria', cor: 'media', janela: { largura: 0, altura: 1.2, pos: 0.5, peitoril: 1.0, vidro: 'comum', protecao: 'nenhuma' } },
-      O: { tipo: 'externa', material: 'alvenaria', cor: 'media', janela: { largura: 1.5, altura: 1.2, pos: 0.5, peitoril: 1.0, vidro: 'comum', protecao: 'nenhuma' } },
+      N: { tipo: 'externa', material: 'alvenaria', cor: 'media', janela: { largura: 0, altura: 1.2, pos: 0.5, peitoril: 1.0, vidro: 'comum', protecao: 'nenhuma' }, porta: { ativa: false, largura: 0.8, pos: 0.5 } },
+      S: { tipo: 'interna_nc', material: 'alvenaria', cor: 'media', janela: { largura: 0, altura: 1.2, pos: 0.5, peitoril: 1.0, vidro: 'comum', protecao: 'nenhuma' }, porta: { ativa: true, largura: 0.8, pos: 0.85 } },
+      L: { tipo: 'interna_nc', material: 'alvenaria', cor: 'media', janela: { largura: 0, altura: 1.2, pos: 0.5, peitoril: 1.0, vidro: 'comum', protecao: 'nenhuma' }, porta: { ativa: false, largura: 0.8, pos: 0.5 } },
+      O: { tipo: 'externa', material: 'alvenaria', cor: 'media', janela: { largura: 1.5, altura: 1.2, pos: 0.5, peitoril: 1.0, vidro: 'comum', protecao: 'nenhuma' }, porta: { ativa: false, largura: 0.8, pos: 0.5 } },
     },
     cobertura: { tipo: 'atico', cor: 'media' },
-    porta: { parede: 'S', pos: 0.85, largura: 0.8 },
     pessoas: { quantidade: 2, atividade: 'escritorio' },
     equipamentos: [{ nome: 'Notebook', qtd: 1, watts: 65 }],
     iluminacao: 'led',
@@ -175,6 +174,18 @@
     return { largura, altura, area };
   }
 
+  const ALTURA_PORTA = 2.1;
+  const U_PORTA = { externa: 2.5, interna_nc: 2.0 }; // porta de madeira maciça/semi-oca (valor aproximado)
+
+  /** Dimensões da porta de uma parede (já normalizada). Porta pode existir em qualquer tipo de parede. */
+  function dimensoesPorta(parede, compParede, peDireito) {
+    const d = parede.porta || {};
+    if (!d.ativa) return { largura: 0, altura: 0, area: 0 };
+    const largura = limitar(num(d.largura, 0.8), 0, Math.max(0, compParede - 0.4));
+    const altura = Math.min(ALTURA_PORTA, Math.max(0, peDireito - 0.1));
+    return { largura, altura, area: largura * altura };
+  }
+
   /** Normaliza a entrada: aplica padrões e limites seguros. */
   function normalizar(entrada) {
     const e = mesclar(PADRAO, entrada || {});
@@ -186,9 +197,46 @@
     e.clima.tbsInt = limitar(num(e.clima.tbsInt, 24), 16, 28);
     e.clima.urInt = limitar(num(e.clima.urInt, 50), 30, 80);
     const compPorta = comprimentosParedes(e.ambiente);
-    if (!compPorta[e.porta.parede]) e.porta.parede = 'S';
-    e.porta.largura = limitar(num(e.porta.largura, 0.8), 0, Math.max(0, compPorta[e.porta.parede] - 0.4));
-    e.porta.pos = limitar(num(e.porta.pos, 0.85), 0.05, 0.95);
+    // Compatibilidade: formato antigo com uma única porta em "porta: { parede, pos, largura }".
+    if (entrada && entrada.porta && typeof entrada.porta === 'object') {
+      const k = compPorta[entrada.porta.parede] ? entrada.porta.parede : 'S';
+      for (const q of ['N', 'S', 'L', 'O']) e.paredes[q].porta.ativa = false;
+      e.paredes[k].porta = {
+        ativa: entrada.porta.largura === undefined || num(entrada.porta.largura, 0.8) > 0,
+        largura: entrada.porta.largura === undefined ? 0.8 : entrada.porta.largura,
+        pos: entrada.porta.pos === undefined ? 0.85 : entrada.porta.pos,
+      };
+    }
+    delete e.porta;
+    // Janelas: a interface envia texto; converte e garante que a janela caiba na parede e no pé-direito.
+    for (const k of ['N', 'S', 'L', 'O']) {
+      const j = e.paredes[k].janela;
+      const len = compPorta[k];
+      const pe = e.ambiente.peDireito;
+      j.largura = limitar(num(j.largura), 0, Math.max(0, len - 0.4));
+      j.altura = limitar(num(j.altura, 1.2), 0, Math.max(0, pe - 0.2));
+      j.peitoril = limitar(num(j.peitoril, 1), 0, Math.max(0, pe - j.altura - 0.1));
+      const meia = j.largura / 2 + 0.1;
+      const centro = limitar(limitar(num(j.pos, 0.5), 0.05, 0.95) * len, Math.min(meia, len / 2), Math.max(len - meia, len / 2));
+      j.pos = centro / len;
+
+      // Porta desta parede
+      const d = e.paredes[k].porta;
+      d.ativa = d.ativa === true || d.ativa === 'true';
+      d.largura = limitar(num(d.largura, 0.8), 0.5, Math.max(0.5, Math.min(2.5, len - 0.4)));
+      const meiaP = d.largura / 2 + 0.05;
+      let c = limitar(num(d.pos, 0.5), 0.05, 0.95) * len;
+      // se a porta bater na janela, empurra a porta para o lado que couber
+      if (d.ativa && e.paredes[k].tipo === 'externa' && j.largura > 0) {
+        const wc = j.pos * len;
+        const folga = j.largura / 2 + d.largura / 2 + 0.1;
+        if (Math.abs(c - wc) < folga) {
+          if (wc + folga + meiaP <= len) c = wc + folga;
+          else if (wc - folga - meiaP >= 0) c = wc - folga;
+        }
+      }
+      d.pos = limitar(c, Math.min(meiaP, len / 2), Math.max(len - meiaP, len / 2)) / len;
+    }
     e.equipamentos = (e.equipamentos || []).map((q) => ({
       nome: String(q.nome || 'Equipamento'),
       qtd: Math.max(0, Math.floor(num(q.qtd))),
@@ -228,14 +276,16 @@
       const p = e.paredes[k];
       const nome = ORIENTACOES[k];
       const j = dimensoesJanela(p, comps[k], peDireito);
+      const d = dimensoesPorta(p, comps[k], peDireito);
       const areaTotal = comps[k] * peDireito;
       areaSuperficie[k] = areaTotal;
       if (p.tipo === 'interna_c') continue;
       const mat = MATERIAIS[p.material] || MATERIAIS.alvenaria;
-      const areaOpaca = Math.max(0, areaTotal - j.area);
+      const areaOpaca = Math.max(0, areaTotal - j.area - d.area);
       if (p.tipo === 'externa') {
         const dTeq = dT + DT_SOL_PAREDE[k] * (FATOR_COR[p.cor] || 1) * mat.amort * fSolar;
         add('parede-' + k, 'envoltoria', `Parede ${nome} (externa)`, mat.U * areaOpaca * Math.max(0, dTeq), 0, k);
+        if (d.area > 0) add('porta-' + k, 'envoltoria', `Porta ${nome} (${arred(d.area, 2)} m²)`, U_PORTA.externa * d.area * Math.max(0, dTeq), 0, k);
         if (j.area > 0) {
           const v = VIDROS[p.janela.vidro] || VIDROS.comum;
           const pr = PROTECOES[p.janela.protecao] || PROTECOES.nenhuma;
@@ -245,6 +295,7 @@
         }
       } else if (p.tipo === 'interna_nc') {
         add('parede-' + k, 'envoltoria', `Parede ${nome} (para área não condicionada)`, mat.U * areaOpaca * Math.max(0, dT - 3), 0, k);
+        if (d.area > 0) add('porta-' + k, 'envoltoria', `Porta ${nome} (${arred(d.area, 2)} m²)`, U_PORTA.interna_nc * d.area * Math.max(0, dT - 3), 0, k);
       }
     }
 
@@ -318,7 +369,7 @@
     return {
       entrada: e,
       clima: { cidade: cid.nome, tbsExt: arred(tbsExt, 1), urExt, tbsInt, urInt: e.clima.urInt, wExt: arred(wExt, 2), wInt: arred(wInt, 2), dT: arred(dT, 1), dW: arred(dW, 2) },
-      geometria: { area, volume, comps, areaSuperficie, janelas: janelasDe(e, comps) },
+      geometria: { area, volume, comps, areaSuperficie, janelas: janelasDe(e, comps), portas: portasDe(e, comps) },
       itens,
       grupos: { envoltoria: grupo('envoltoria'), interna: grupo('interna'), ar: grupo('ar') },
       porSuperficie,
@@ -327,6 +378,12 @@
       regraPratica: regraPratica(area, e.pessoas.quantidade, qtdEquip),
       energia: energia(totalW, e.uso),
     };
+  }
+
+  function portasDe(e, comps) {
+    const out = {};
+    for (const k of ['N', 'S', 'L', 'O']) out[k] = dimensoesPorta(e.paredes[k], comps[k], e.ambiente.peDireito);
+    return out;
   }
 
   function janelasDe(e, comps) {
@@ -470,6 +527,6 @@
     ATIVIDADES, ILUMINACAO, INFILTRACAO, EQUIPAMENTOS_PADRAO, PADRAO, ORIENTACOES,
     FATOR_COR, DT_SOL_PAREDE, SOLAR_VIDRO,
     calcular, normalizar, dimensionar, regraPratica, energia, sugerirEquipamento, oportunidades,
-    umidadeAbsoluta, pressaoSaturacao, comprimentosParedes, dimensoesJanela, mesclar, arred,
+    umidadeAbsoluta, pressaoSaturacao, comprimentosParedes, dimensoesJanela, dimensoesPorta, mesclar, arred,
   };
 });

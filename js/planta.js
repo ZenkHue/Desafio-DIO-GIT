@@ -69,13 +69,14 @@ export function criarPlanta(container, { Pos, aoMudar, aoSelecionarPosicao, aoSe
       partes.push(`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="#4aa3d6" stroke-width=".2"/>`);
     }
 
-    // porta
-    if (e.porta && e.porta.largura > 0) {
-      const k = e.porta.parede;
+    // portas (uma por parede, no máximo)
+    for (const k of ['N', 'S', 'L', 'O']) {
+      const dp = res.geometria.portas[k];
+      if (!dp || dp.area <= 0) continue;
       const len = k === 'N' || k === 'S' ? W : L;
-      const c = Math.min(Math.max(e.porta.pos, 0), 1) * len;
-      const a = Math.max(0, c - e.porta.largura / 2);
-      const w = e.porta.largura;
+      const c = Math.min(Math.max(e.paredes[k].porta.pos, 0), 1) * len;
+      const a = Math.max(0, c - dp.largura / 2);
+      const w = dp.largura;
       let d;
       if (k === 'N') d = `M ${f(a)} 0 L ${f(a)} ${f(w)} A ${f(w)} ${f(w)} 0 0 0 ${f(a + w)} 0`;
       else if (k === 'S') d = `M ${f(a)} ${f(L)} L ${f(a)} ${f(L - w)} A ${f(w)} ${f(w)} 0 0 1 ${f(a + w)} ${f(L)}`;

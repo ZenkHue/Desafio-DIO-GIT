@@ -188,6 +188,7 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
   let chaveGeometria = '';
   let fatiaJato = null; // dados para animar partículas
   let marcadores = [];
+  let janelasInfo = []; // para testes: posição real das janelas no 3D
   let visivel = true;
   const escuro = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
 
@@ -212,6 +213,7 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
   function construir() {
     limpar(modelo);
     marcadores = [];
+    janelasInfo = [];
     fatiaJato = null;
     if (!dados) return;
     const { res, sug, selecionado, Pos } = dados;
@@ -291,6 +293,7 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
         vidro.position.set(base.x - g.n.x * ESPESSURA * 0.5, cy, base.z - g.n.z * ESPESSURA * 0.5);
         arestas(vidro, 0x1d5f8a, 1);
         modelo.add(vidro);
+        janelasInfo.push({ parede: k, x: vidro.position.x, y: vidro.position.y, z: vidro.position.z });
 
         const prot = jc.protecao;
         if (prot === 'externa') {
@@ -322,17 +325,17 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
       }
     }
 
-    // porta
-    if (e.porta && e.porta.largura > 0) {
-      const g = geoParede[e.porta.parede];
-      if (g) {
-        const s = Math.min(Math.max(e.porta.pos, 0), 1) * g.len;
-        const base = g.ponto(s);
-        const porta = caixa(g.alongX ? e.porta.largura : ESPESSURA * 1.3, 2.1, g.alongX ? ESPESSURA * 1.3 : e.porta.largura, 0x8a5a33, { transparent: true, opacity: 0.55, depthWrite: false });
-        porta.position.set(base.x - g.n.x * ESPESSURA * 0.5, 1.05, base.z - g.n.z * ESPESSURA * 0.5);
-        arestas(porta, 0x3b2616, 1);
-        modelo.add(porta);
-      }
+    // portas (uma por parede, no máximo)
+    for (const k of ['N', 'S', 'L', 'O']) {
+      const dp = res.geometria.portas[k];
+      if (!dp || dp.area <= 0) continue;
+      const g = geoParede[k];
+      const s = Math.min(Math.max(e.paredes[k].porta.pos, 0), 1) * g.len;
+      const base = g.ponto(s);
+      const porta = caixa(g.alongX ? dp.largura : ESPESSURA * 1.3, dp.altura, g.alongX ? ESPESSURA * 1.3 : dp.largura, 0x8a5a33, { transparent: true, opacity: 0.55, depthWrite: false });
+      porta.position.set(base.x - g.n.x * ESPESSURA * 0.5, dp.altura / 2, base.z - g.n.z * ESPESSURA * 0.5);
+      arestas(porta, 0x3b2616, 1);
+      modelo.add(porta);
     }
 
     // cobertura
@@ -538,6 +541,6 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
       if (dados && ('calor' in o || 'teto' in o)) construir();
     },
     // para testes automatizados
-    _estado: () => ({ marcadores: marcadores.length, particulas: !!fatiaJato }),
+    _estado: () => ({ marcadores: marcadores.length, particulas: !!fatiaJato, janelas: janelasInfo }),
   };
 }

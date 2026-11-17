@@ -50,8 +50,10 @@ input[type=range] { width: 100%; accent-color: var(--brand); min-height: 32px; }
 .parede .corpo { padding: 0 14px 12px; }
 .parede .janela { margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--border); }
 .parede .janela[hidden] { display: none; }
+.porta-bloco { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.porta-bloco .check { margin-bottom: 8px; }
+.porta-bloco [hidden] { display: none; }
 .janela h4 { margin: 0 0 8px; font-size: .8rem; color: var(--brand); text-transform: uppercase; letter-spacing: .05em; }
-.porta { margin-top: 12px; }
 
 /* Equipamentos */
 .equip { display: grid; gap: 6px; margin-bottom: 8px; }
