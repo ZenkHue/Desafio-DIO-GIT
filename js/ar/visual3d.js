@@ -1,13 +1,13 @@
 /*
- * Visualizador 3D do ambiente (Three.js). Eixos: x = Leste, y = altura, z = Sul (Norte em z = 0).
- * Mostra paredes com mapa de calor, janelas e proteções, porta, móveis, a evaporadora sugerida
- * com o jato de ar (partículas), a condensadora e alternativas clicáveis.
+ * Visualizador 3D do ambiente (Three.js). Planta: A = parede de cima (z = 0), B = direita (x = W),
+ * C = de baixo (z = L), D = esquerda (x = 0); y para cima.
+ * Mostra o sol na posição da hora escolhida, mapa de calor por superfície naquela hora, janelas,
+ * portas, móveis, a evaporadora sugerida com o jato de ar, a condensadora e as alternativas clicáveis.
  */
 import * as THREE from 'three';
-import { OrbitControls } from '../vendor/OrbitControls.js';
+import { OrbitControls } from '../../vendor/OrbitControls.js';
 
 const COR_CALOR = [new THREE.Color(0x2e9f6e), new THREE.Color(0xe3c04a), new THREE.Color(0xd6452f)];
-const NOMES = { N: 'Norte', S: 'Sul', L: 'Leste', O: 'Oeste' };
 const ESPESSURA = 0.12;
 
 function corCalor(t) {
@@ -150,6 +150,19 @@ function criarCondensadora() {
   return g;
 }
 
+const ROTULO_EXP = { manha: 'sol da manhã', tarde: 'sol da tarde', diatodo: 'sol o dia todo', nao: 'sem sol' };
+
+/** Para onde a parede A está virada (graus a partir do Norte), para posicionar o sol na cena. */
+function azimuteDaParedeA(e, exposicao) {
+  if (e.orientacao.modo === 'bussola') return { N: 0, NE: 45, L: 90, SE: 135, S: 180, SO: 225, O: 270, NO: 315 }[e.orientacao.paredeA] || 0;
+  const desloc = { A: 0, B: 90, C: 180, D: 270 };
+  for (const k of ['A', 'B', 'C', 'D']) {
+    if (exposicao[k] === 'tarde') return (270 - desloc[k] + 360) % 360;
+    if (exposicao[k] === 'manha') return (90 - desloc[k] + 360) % 360;
+  }
+  return 0;
+}
+
 export function criarVisualizador(container, { aoSelecionar } = {}) {
   let renderer;
   try {
@@ -157,9 +170,9 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
   } catch (_) {
     const m = document.createElement('div');
     m.className = 'sem-webgl';
-    m.textContent = 'Seu navegador ou dispositivo não suporta WebGL. Use a planta 2D abaixo para ver a posição sugerida.';
+    m.textContent = 'Seu navegador ou aparelho não suporta 3D (WebGL). Use a planta abaixo para ver a posição sugerida.';
     container.appendChild(m);
-    return { disponivel: false, atualizar() {}, vista() {}, opcoes() {} };
+    return { disponivel: false, atualizar() {}, vista() {}, opcoes() {}, _estado: () => ({}) };
   }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.localClippingEnabled = true;
@@ -167,10 +180,9 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 300);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.5));
-  const sol = new THREE.DirectionalLight(0xffffff, 1.6);
-  sol.position.set(6, 12, 8);
-  scene.add(sol);
+  const ceu = new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.3);
+  const sol = new THREE.DirectionalLight(0xfff1d6, 1.8);
+  scene.add(ceu, sol, sol.target);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -186,51 +198,59 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
   let dados = null;
   let opcoes = { calor: true, teto: false };
   let chaveGeometria = '';
-  let fatiaJato = null; // dados para animar partículas
+  let jato = null;
   let marcadores = [];
-  let janelasInfo = []; // para testes: posição real das janelas no 3D
+  let janelasInfo = [];
   let visivel = true;
   const escuro = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-  /* ---------- enquadramento de câmera ---------- */
   function enquadrar(nome) {
     if (!dados) return;
     const { W, L, H } = dados.dim;
     const centro = new THREE.Vector3(W / 2, H * 0.4, L / 2);
     const dist = Math.max(4, Math.hypot(W, L, H) * 1.35);
     controls.target.copy(centro);
-    const dirs = {
-      iso: [0.62, 0.62, 0.78],
-      topo: [0, 1.0, 0.001],
-      sul: [0, 0.28, 1],
-    };
+    const dirs = { iso: [0.62, 0.62, 0.78], topo: [0, 1, 0.001], frente: [0, 0.28, 1] };
     const v = new THREE.Vector3(...(dirs[nome] || dirs.iso)).normalize().multiplyScalar(nome === 'topo' ? dist * 1.05 : dist);
     camera.position.copy(centro).add(v);
     controls.update();
   }
 
-  /* ---------- construção do modelo ---------- */
   function construir() {
     limpar(modelo);
     marcadores = [];
     janelasInfo = [];
-    fatiaJato = null;
+    jato = null;
     if (!dados) return;
-    const { res, sug, selecionado, Pos } = dados;
+    const { res, sug, selecionado, Pos, hora } = dados;
     const e = res.entrada;
     const W = e.ambiente.largura;
     const L = e.ambiente.comprimento;
     const H = e.ambiente.peDireito;
-    const noite = e.clima.uso === 'noite';
     const dark = escuro();
     const txt = dark ? '#e8eef3' : '#17202a';
-    const fundoRotulo = dark ? 'rgba(24,32,39,.88)' : 'rgba(255,255,255,.88)';
+    const fundoRot = dark ? 'rgba(24,32,39,.88)' : 'rgba(255,255,255,.9)';
 
-    // chão
-    const piso = new THREE.Mesh(
-      new THREE.PlaneGeometry(W, L),
-      new THREE.MeshStandardMaterial({ color: dark ? 0x2b363e : 0xdfe6eb, roughness: 0.95 })
-    );
+    // ---------- sol da hora escolhida
+    const s = res.sol[hora];
+    const azA = azimuteDaParedeA(e, res.exposicao);
+    const rel = ((s.azimute - azA) * Math.PI) / 180;
+    const alt = (Math.max(s.altitude, -5) * Math.PI) / 180;
+    const R = Math.hypot(W, L) + 4;
+    const dirSol = new THREE.Vector3(Math.sin(rel) * Math.cos(alt), Math.sin(alt), -Math.cos(rel) * Math.cos(alt));
+    sol.position.set(W / 2 + dirSol.x * R, dirSol.y * R, L / 2 + dirSol.z * R);
+    sol.target.position.set(W / 2, 0, L / 2);
+    const dia = s.altitude > 0;
+    sol.intensity = dia ? 0.6 + 1.4 * Math.sin(Math.max(alt, 0)) : 0.15;
+    ceu.intensity = dia ? 1.3 : 0.7;
+    if (dia) {
+      const bola = sprite('☀️', { fundo: 'rgba(255,214,102,.0)', escala: 1.2, tamanhoFonte: 64, circulo: true });
+      bola.position.set(W / 2 + dirSol.x * (R * 0.55), Math.max(0.6, dirSol.y * R * 0.55), L / 2 + dirSol.z * (R * 0.55));
+      modelo.add(bola);
+    }
+
+    // ---------- chão
+    const piso = new THREE.Mesh(new THREE.PlaneGeometry(W, L), new THREE.MeshStandardMaterial({ color: dark ? 0x2b363e : 0xdfe6eb, roughness: 0.95 }));
     piso.rotation.x = -Math.PI / 2;
     piso.position.set(W / 2, 0, L / 2);
     const grade = new THREE.GridHelper(Math.max(W, L), Math.round(Math.max(W, L)), dark ? 0x4b5963 : 0xb0bcc5, dark ? 0x3a464f : 0xc3cdd5);
@@ -239,212 +259,177 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
     grade.material.opacity = 0.5;
     modelo.add(piso, grade);
 
-    // escala do mapa de calor
-    const sup = res.porSuperficie;
-    const ext = ['N', 'S', 'L', 'O'].filter((k) => e.paredes[k].tipo === 'externa').map((k) => sup[k].wm2);
-    if (e.cobertura.tipo !== 'andar_c') ext.push(sup.cobertura.wm2);
-    const maxWm2 = Math.max(1, ...ext);
+    // ---------- escala do mapa de calor (máximo do dia inteiro, para as cores não "pularem" com a hora)
+    let maxWm2 = 1;
+    for (const k of ['A', 'B', 'C', 'D', 'teto']) for (const v of res.porSuperficie[k].wm2) maxWm2 = Math.max(maxWm2, v);
 
-    // paredes
     const defs = {
-      N: { pos: [W / 2, H / 2, -ESPESSURA / 2], tam: [W + 2 * ESPESSURA, H, ESPESSURA], rotulo: [W / 2, H + 0.35, -0.9] },
-      S: { pos: [W / 2, H / 2, L + ESPESSURA / 2], tam: [W + 2 * ESPESSURA, H, ESPESSURA], rotulo: [W / 2, H + 0.35, L + 0.9] },
-      O: { pos: [-ESPESSURA / 2, H / 2, L / 2], tam: [ESPESSURA, H, L], rotulo: [-1.1, H + 0.35, L / 2] },
-      L: { pos: [W + ESPESSURA / 2, H / 2, L / 2], tam: [ESPESSURA, H, L], rotulo: [W + 1.1, H + 0.35, L / 2] },
+      A: { pos: [W / 2, H / 2, -ESPESSURA / 2], tam: [W + 2 * ESPESSURA, H, ESPESSURA], rot: [W / 2, H + 0.35, -0.6] },
+      C: { pos: [W / 2, H / 2, L + ESPESSURA / 2], tam: [W + 2 * ESPESSURA, H, ESPESSURA], rot: [W / 2, H + 0.35, L + 0.6] },
+      D: { pos: [-ESPESSURA / 2, H / 2, L / 2], tam: [ESPESSURA, H, L], rot: [-0.7, H + 0.35, L / 2] },
+      B: { pos: [W + ESPESSURA / 2, H / 2, L / 2], tam: [ESPESSURA, H, L], rot: [W + 0.7, H + 0.35, L / 2] },
     };
-    const geoParede = {
-      N: { len: W, ponto: (s) => new THREE.Vector3(s, 0, 0), alongX: true, n: new THREE.Vector3(0, 0, 1) },
-      S: { len: W, ponto: (s) => new THREE.Vector3(s, 0, L), alongX: true, n: new THREE.Vector3(0, 0, -1) },
-      O: { len: L, ponto: (s) => new THREE.Vector3(0, 0, s), alongX: false, n: new THREE.Vector3(1, 0, 0) },
-      L: { len: L, ponto: (s) => new THREE.Vector3(W, 0, s), alongX: false, n: new THREE.Vector3(-1, 0, 0) },
+    const geo = {
+      A: { len: W, ponto: (t) => new THREE.Vector3(t, 0, 0), x: true, n: new THREE.Vector3(0, 0, 1) },
+      C: { len: W, ponto: (t) => new THREE.Vector3(t, 0, L), x: true, n: new THREE.Vector3(0, 0, -1) },
+      D: { len: L, ponto: (t) => new THREE.Vector3(0, 0, t), x: false, n: new THREE.Vector3(1, 0, 0) },
+      B: { len: L, ponto: (t) => new THREE.Vector3(W, 0, t), x: false, n: new THREE.Vector3(-1, 0, 0) },
     };
 
-    for (const k of ['N', 'S', 'L', 'O']) {
+    for (const k of ['A', 'B', 'C', 'D']) {
       const p = e.paredes[k];
       const d = defs[k];
-      const g = geoParede[k];
+      const g = geo[k];
+      const gp = res.geometria.paredes[k];
       const externa = p.tipo === 'externa';
+      const wm2 = res.porSuperficie[k].wm2[hora];
       let cor = dark ? 0x7d8b96 : 0xc3ced6;
-      let opac = p.tipo === 'interna_c' ? 0.1 : p.tipo === 'interna_nc' ? 0.2 : 0.3;
-      if (opcoes.calor && externa) cor = corCalor(sup[k].wm2 / maxWm2).getHex();
+      if (opcoes.calor && p.tipo !== 'climatizada') cor = corCalor(Math.max(0, wm2) / maxWm2).getHex();
+      const opac = p.tipo === 'climatizada' ? 0.1 : externa ? 0.32 : 0.2;
       const m = caixa(...d.tam, cor, { transparent: true, opacity: opac, depthWrite: false, roughness: 1 });
       m.position.set(...d.pos);
       arestas(m, dark ? 0x93a1ac : 0x55616d, 0.55);
       modelo.add(m);
 
-      const rot = sprite(
-        externa ? `${NOMES[k]} · ${sup[k].wm2} W/m²` : `${NOMES[k]} · ${p.tipo === 'interna_c' ? 'vizinho climatizado' : 'interna'}`,
-        { cor: txt, fundo: fundoRotulo, escala: 1, tamanhoFonte: 30 }
-      );
-      rot.position.set(...d.rotulo);
-      modelo.add(rot);
+      const desc = externa ? ROTULO_EXP[res.exposicao[k]] : p.tipo === 'climatizada' ? 'vizinho com ar' : 'interna';
+      const r = sprite(`${k} · ${desc}${p.tipo !== 'climatizada' ? ` · ${Math.round(wm2)} W/m²` : ''}`, { cor: txt, fundo: fundoRot, escala: 1, tamanhoFonte: 28 });
+      r.position.set(...d.rot);
+      modelo.add(r);
 
-      // janela e proteções
-      const jan = res.geometria.janelas[k];
-      if (externa && jan.area > 0) {
-        const jc = e.paredes[k].janela;
-        const s = Math.min(Math.max(jc.pos, 0), 1) * g.len;
-        const cy = jc.peitoril + jan.altura / 2;
+      // janela
+      if (externa && gp.janela.area > 0) {
+        const j = p.janela;
+        const t = j.pos * g.len;
+        const cy = j.peitoril + j.altura / 2;
+        const base = g.ponto(t);
         const vidro = new THREE.Mesh(
-          new THREE.BoxGeometry(g.alongX ? jan.largura : ESPESSURA * 1.2, jan.altura, g.alongX ? ESPESSURA * 1.2 : jan.largura),
+          new THREE.BoxGeometry(g.x ? j.largura : ESPESSURA * 1.2, j.altura, g.x ? ESPESSURA * 1.2 : j.largura),
           new THREE.MeshStandardMaterial({ color: 0x7cc4ee, transparent: true, opacity: 0.6, roughness: 0.1, metalness: 0.2 })
         );
-        const base = g.ponto(s);
         vidro.position.set(base.x - g.n.x * ESPESSURA * 0.5, cy, base.z - g.n.z * ESPESSURA * 0.5);
         arestas(vidro, 0x1d5f8a, 1);
         modelo.add(vidro);
         janelasInfo.push({ parede: k, x: vidro.position.x, y: vidro.position.y, z: vidro.position.z });
-
-        const prot = jc.protecao;
-        if (prot === 'externa') {
-          const toldo = caixa(g.alongX ? jan.largura + 0.3 : 0.7, 0.05, g.alongX ? 0.7 : jan.largura + 0.3, 0x4f5b66);
-          toldo.position.set(base.x - g.n.x * 0.45, jc.peitoril + jan.altura + 0.08, base.z - g.n.z * 0.45);
+        if (j.protecao === 'externa') {
+          const toldo = caixa(g.x ? j.largura + 0.3 : 0.7, 0.05, g.x ? 0.7 : j.largura + 0.3, 0x4f5b66);
+          toldo.position.set(base.x - g.n.x * 0.45, j.peitoril + j.altura + 0.08, base.z - g.n.z * 0.45);
           modelo.add(toldo);
-        } else if (prot === 'cortina') {
-          const cort = new THREE.Mesh(
-            new THREE.PlaneGeometry(g.alongX ? jan.largura + 0.2 : jan.largura + 0.2, jan.altura + 0.3),
-            new THREE.MeshStandardMaterial({ color: 0xf1e3c8, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
-          );
-          cort.position.set(base.x + g.n.x * 0.1, cy, base.z + g.n.z * 0.1);
-          cort.rotation.y = g.alongX ? 0 : Math.PI / 2;
-          modelo.add(cort);
+        } else if (j.protecao === 'cortina') {
+          const c = new THREE.Mesh(new THREE.PlaneGeometry(j.largura + 0.2, j.altura + 0.3), new THREE.MeshStandardMaterial({ color: 0xf1e3c8, transparent: true, opacity: 0.7, side: THREE.DoubleSide }));
+          c.position.set(base.x + g.n.x * 0.1, cy, base.z + g.n.z * 0.1);
+          c.rotation.y = g.x ? 0 : Math.PI / 2;
+          modelo.add(c);
         }
-
-        if (opcoes.calor && !noite) {
-          const n = 3;
-          for (let i = 0; i < n; i++) {
-            const off = (i - 1) * Math.min(0.5, jan.largura / 3);
-            const alvo = new THREE.Vector3(base.x + (g.alongX ? off : 0), cy + (i - 1) * 0.15, base.z + (g.alongX ? 0 : off));
-            const dir = g.n.clone().multiplyScalar(1).setY(-0.35).normalize();
-            const origem = alvo.clone().addScaledVector(dir, -1.5);
-            origem.addScaledVector(g.n, 0); // vem de fora
-            const seta = new THREE.ArrowHelper(dir, origem, 1.35, 0xf59e0b, 0.28, 0.14);
-            modelo.add(seta);
+        // raios de sol entrando: só se a janela recebe sol direto nesta hora
+        const direto = res.solDireto[k] ? res.solDireto[k][hora] : 0;
+        if (opcoes.calor && direto > 40) {
+          const dir = dirSol.clone().negate().normalize();
+          for (let i = 0; i < 3; i++) {
+            const off = (i - 1) * Math.min(0.5, j.largura / 3);
+            const alvo = new THREE.Vector3(base.x + (g.x ? off : 0), cy + (i - 1) * 0.15, base.z + (g.x ? 0 : off));
+            const origem = alvo.clone().addScaledVector(dir, -1.6);
+            modelo.add(new THREE.ArrowHelper(dir, origem, 1.45, 0xf59e0b, 0.28, 0.14));
           }
         }
       }
+      // porta
+      if (gp.porta.area > 0) {
+        const t = p.porta.pos * g.len;
+        const base = g.ponto(t);
+        const porta = caixa(g.x ? gp.porta.largura : ESPESSURA * 1.3, gp.porta.altura, g.x ? ESPESSURA * 1.3 : gp.porta.largura, 0x8a5a33, { transparent: true, opacity: 0.55, depthWrite: false });
+        porta.position.set(base.x - g.n.x * ESPESSURA * 0.5, gp.porta.altura / 2, base.z - g.n.z * ESPESSURA * 0.5);
+        arestas(porta, 0x3b2616, 1);
+        modelo.add(porta);
+      }
     }
 
-    // portas (uma por parede, no máximo)
-    for (const k of ['N', 'S', 'L', 'O']) {
-      const dp = res.geometria.portas[k];
-      if (!dp || dp.area <= 0) continue;
-      const g = geoParede[k];
-      const s = Math.min(Math.max(e.paredes[k].porta.pos, 0), 1) * g.len;
-      const base = g.ponto(s);
-      const porta = caixa(g.alongX ? dp.largura : ESPESSURA * 1.3, dp.altura, g.alongX ? ESPESSURA * 1.3 : dp.largura, 0x8a5a33, { transparent: true, opacity: 0.55, depthWrite: false });
-      porta.position.set(base.x - g.n.x * ESPESSURA * 0.5, dp.altura / 2, base.z - g.n.z * ESPESSURA * 0.5);
-      arestas(porta, 0x3b2616, 1);
-      modelo.add(porta);
+    // ---------- teto
+    const wTeto = res.porSuperficie.teto.wm2[hora];
+    const temTeto = !['apartamento_ar'].includes(e.cobertura.tipo);
+    if (temTeto) {
+      if (opcoes.teto) {
+        const cor = opcoes.calor ? corCalor(Math.max(0, wTeto) / maxWm2).getHex() : dark ? 0x7d8b96 : 0xc3ced6;
+        const laje = caixa(W + 2 * ESPESSURA, ESPESSURA, L + 2 * ESPESSURA, cor, { transparent: true, opacity: 0.55, depthWrite: false });
+        laje.position.set(W / 2, H + ESPESSURA / 2, L / 2);
+        arestas(laje, dark ? 0x93a1ac : 0x55616d, 0.6);
+        modelo.add(laje);
+      }
+      const r = sprite(`Teto · ${Math.round(wTeto)} W/m²`, { cor: txt, fundo: fundoRot, escala: 1, tamanhoFonte: 28 });
+      r.position.set(W / 2, H + 0.9, L / 2);
+      modelo.add(r);
     }
 
-    // cobertura
-    const cobAtiva = e.cobertura.tipo !== 'andar_c';
-    if (cobAtiva) {
-      const cor = opcoes.calor ? corCalor(sup.cobertura.wm2 / maxWm2).getHex() : dark ? 0x7d8b96 : 0xc3ced6;
-      const laje = caixa(W + 2 * ESPESSURA, ESPESSURA, L + 2 * ESPESSURA, cor, { transparent: true, opacity: opcoes.teto ? 0.55 : 0.0, depthWrite: false });
-      laje.position.set(W / 2, H + ESPESSURA / 2, L / 2);
-      laje.visible = opcoes.teto;
-      if (opcoes.teto) arestas(laje, dark ? 0x93a1ac : 0x55616d, 0.6);
-      modelo.add(laje);
-      const rot = sprite(`Cobertura · ${sup.cobertura.wm2} W/m²`, { cor: txt, fundo: fundoRotulo, escala: 1, tamanhoFonte: 30 });
-      rot.position.set(W / 2, H + 0.9, L / 2);
-      modelo.add(rot);
-    }
+    // ---------- cotas e móveis
+    const cx = sprite(`${W.toFixed(1).replace('.', ',')} m`, { cor: txt, fundo: fundoRot, escala: 0.75 });
+    cx.position.set(W / 2, 0.05, L + 0.5);
+    const cz = sprite(`${L.toFixed(1).replace('.', ',')} m`, { cor: txt, fundo: fundoRot, escala: 0.75 });
+    cz.position.set(-0.5, 0.05, L / 2);
+    modelo.add(cx, cz);
+    for (const it of sug.itens) modelo.add(criarMovel(it, Pos.pontosItem(it)));
 
-    // cotas
-    const cotaX = sprite(`${W.toFixed(1).replace('.', ',')} m`, { cor: txt, fundo: fundoRotulo, escala: 0.75 });
-    cotaX.position.set(W / 2, 0.05, L + 0.55);
-    const cotaZ = sprite(`${L.toFixed(1).replace('.', ',')} m`, { cor: txt, fundo: fundoRotulo, escala: 0.75 });
-    cotaZ.position.set(-0.55, 0.05, L / 2);
-    modelo.add(cotaX, cotaZ);
-
-    // móveis
-    for (const it of sug.itens) {
-      modelo.add(criarMovel(it, Pos.pontosItem(it)));
-    }
-
-    // equipamento sugerido
-    const alt = sug.porParede;
-    const escolhido = selecionado || sug.melhor;
-    if (escolhido) {
-      const n = new THREE.Vector3(escolhido.normal.x, 0, escolhido.normal.z);
+    // ---------- aparelho sugerido, jato e condensadora
+    const esc = selecionado || sug.melhor;
+    if (esc) {
+      const n = new THREE.Vector3(esc.normal.x, 0, esc.normal.z);
       const un = criarEvaporadora(sug.larguraUnidade);
-      un.position.set(escolhido.x + n.x * 0.11, escolhido.y, escolhido.z + n.z * 0.11);
+      un.position.set(esc.x + n.x * 0.11, esc.y, esc.z + n.z * 0.11);
       un.rotation.y = Math.atan2(n.x, n.z);
       modelo.add(un);
 
       const recorte = [
-        new THREE.Plane(new THREE.Vector3(1, 0, 0), 0),
-        new THREE.Plane(new THREE.Vector3(-1, 0, 0), W),
-        new THREE.Plane(new THREE.Vector3(0, 0, 1), 0),
-        new THREE.Plane(new THREE.Vector3(0, 0, -1), L),
-        new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
-        new THREE.Plane(new THREE.Vector3(0, -1, 0), H),
+        new THREE.Plane(new THREE.Vector3(1, 0, 0), 0), new THREE.Plane(new THREE.Vector3(-1, 0, 0), W),
+        new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Plane(new THREE.Vector3(0, 0, -1), L),
+        new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Plane(new THREE.Vector3(0, -1, 0), H),
       ];
-      const alcance = dados.alcance;
-      const prof = escolhido.parede === 'N' || escolhido.parede === 'S' ? L : W;
-      const comp = Math.min(alcance, prof * 0.97);
+      const prof = esc.parede === 'A' || esc.parede === 'C' ? L : W;
+      const comp = Math.min(dados.alcance, prof * 0.97);
       const dir = new THREE.Vector3(n.x, -0.12, n.z).normalize();
       const raio = comp * Math.tan((28 * Math.PI) / 180);
       const cone = new THREE.Mesh(
         new THREE.CylinderGeometry(raio, 0.05, comp, 28, 1, true),
         new THREE.MeshBasicMaterial({ color: 0x4db8ff, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide, clippingPlanes: recorte })
       );
-      const origem = new THREE.Vector3(escolhido.x + n.x * 0.2, escolhido.y - 0.1, escolhido.z + n.z * 0.2);
+      const origem = new THREE.Vector3(esc.x + n.x * 0.2, esc.y - 0.1, esc.z + n.z * 0.2);
       cone.position.copy(origem).addScaledVector(dir, comp / 2);
       cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
       modelo.add(cone);
-
-      // partículas do jato
       const N = 150;
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
-      const pontos = new THREE.Points(
-        geo,
-        new THREE.PointsMaterial({ color: 0xa8e3ff, size: 0.07, transparent: true, opacity: 0.9, depthWrite: false, clippingPlanes: recorte })
-      );
-      modelo.add(pontos);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+      modelo.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xa8e3ff, size: 0.07, transparent: true, opacity: 0.9, depthWrite: false, clippingPlanes: recorte })));
       const p1 = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
-      if (p1.lengthSq() < 0.5) p1.set(1, 0, 0);
       const p2 = new THREE.Vector3().crossVectors(dir, p1).normalize();
-      fatiaJato = {
-        geo, N, origem, dir, p1, p2, comp, raio,
+      jato = {
+        g, N, origem, dir, p1, p2, comp, raio,
         u: Float32Array.from({ length: N }, () => Math.random()),
         v: Float32Array.from({ length: N }, () => 0.5 + Math.random() * 0.8),
         a: Float32Array.from({ length: N }, () => Math.random() * Math.PI * 2),
         r: Float32Array.from({ length: N }, () => Math.sqrt(Math.random())),
       };
-
-      // condensadora e tubulação
-      if (escolhido.condensadora) {
-        const c = escolhido.condensadora;
+      if (esc.condensadora) {
+        const c = esc.condensadora;
         const cond = criarCondensadora();
         cond.position.set(c.x, c.y, c.z);
         cond.rotation.y = Math.atan2(-n.x, -n.z);
         modelo.add(cond);
-        const tubo = new THREE.Line(
+        modelo.add(new THREE.Line(
           new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(escolhido.x - n.x * 0.05, escolhido.y - 0.1, escolhido.z - n.z * 0.05),
-            new THREE.Vector3(escolhido.x - n.x * 0.3, escolhido.y - 0.1, escolhido.z - n.z * 0.3),
+            new THREE.Vector3(esc.x - n.x * 0.05, esc.y - 0.1, esc.z - n.z * 0.05),
+            new THREE.Vector3(esc.x - n.x * 0.3, esc.y - 0.1, esc.z - n.z * 0.3),
             new THREE.Vector3(c.x, c.y + 0.15, c.z),
           ]),
           new THREE.LineBasicMaterial({ color: 0xc87533 })
-        );
-        modelo.add(tubo);
-        const rc = sprite('Condensadora', { cor: txt, fundo: fundoRotulo, escala: 0.8, tamanhoFonte: 30 });
+        ));
+        const rc = sprite('Condensadora', { cor: txt, fundo: fundoRot, escala: 0.8, tamanhoFonte: 28 });
         rc.position.set(c.x - n.x * 0.5, c.y + 0.7, c.z - n.z * 0.5);
         modelo.add(rc);
       }
     }
 
-    // alternativas clicáveis
-    alt.forEach((c, i) => {
-      if (escolhido && c.parede === escolhido.parede) return;
-      const m = new THREE.Mesh(
-        new THREE.SphereGeometry(0.22, 16, 12),
-        new THREE.MeshStandardMaterial({ color: 0x35c28d, emissive: 0x1f8a63, transparent: true, opacity: 0.35 })
-      );
+    // ---------- alternativas clicáveis
+    sug.porParede.forEach((c, i) => {
+      if (esc && c.parede === esc.parede) return;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12), new THREE.MeshStandardMaterial({ color: 0x35c28d, emissive: 0x1f8a63, transparent: true, opacity: 0.35 }));
       m.position.set(c.x + c.normal.x * 0.2, c.y, c.z + c.normal.z * 0.2);
       m.userData.parede = c.parede;
       modelo.add(m);
@@ -455,15 +440,14 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
     });
   }
 
-  /* ---------- animação ---------- */
   const relogio = new THREE.Clock();
   function animar() {
     requestAnimationFrame(animar);
     if (!visivel || document.hidden) return;
     const dt = Math.min(relogio.getDelta(), 0.05);
-    if (fatiaJato) {
-      const j = fatiaJato;
-      const pos = j.geo.attributes.position.array;
+    if (jato) {
+      const j = jato;
+      const pos = j.g.attributes.position.array;
       for (let i = 0; i < j.N; i++) {
         j.u[i] += dt * 0.28 * j.v[i];
         if (j.u[i] > 1) {
@@ -473,17 +457,18 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
         }
         const u = j.u[i];
         const rad = j.raio * u * j.r[i] * 0.9;
-        pos[i * 3] = j.origem.x + j.dir.x * u * j.comp + (j.p1.x * Math.cos(j.a[i]) + j.p2.x * Math.sin(j.a[i])) * rad;
-        pos[i * 3 + 1] = j.origem.y + j.dir.y * u * j.comp + (j.p1.y * Math.cos(j.a[i]) + j.p2.y * Math.sin(j.a[i])) * rad;
-        pos[i * 3 + 2] = j.origem.z + j.dir.z * u * j.comp + (j.p1.z * Math.cos(j.a[i]) + j.p2.z * Math.sin(j.a[i])) * rad;
+        const ca = Math.cos(j.a[i]);
+        const sa = Math.sin(j.a[i]);
+        pos[i * 3] = j.origem.x + j.dir.x * u * j.comp + (j.p1.x * ca + j.p2.x * sa) * rad;
+        pos[i * 3 + 1] = j.origem.y + j.dir.y * u * j.comp + (j.p1.y * ca + j.p2.y * sa) * rad;
+        pos[i * 3 + 2] = j.origem.z + j.dir.z * u * j.comp + (j.p1.z * ca + j.p2.z * sa) * rad;
       }
-      j.geo.attributes.position.needsUpdate = true;
+      j.g.attributes.position.needsUpdate = true;
     }
     controls.update();
     renderer.render(scene, camera);
   }
 
-  /* ---------- tamanho e visibilidade ---------- */
   function redimensionar() {
     const w = container.clientWidth || 300;
     const h = container.clientHeight || 300;
@@ -493,20 +478,15 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
   }
   new ResizeObserver(redimensionar).observe(container);
   redimensionar();
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver((es) => (visivel = es[0].isIntersecting), { threshold: 0 }).observe(container);
-  }
+  if ('IntersectionObserver' in window) new IntersectionObserver((es) => (visivel = es[0].isIntersecting)).observe(container);
   if (window.matchMedia) {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    (mq.addEventListener ? mq.addEventListener.bind(mq, 'change') : mq.addListener.bind(mq))(() => construir());
+    if (mq.addEventListener) mq.addEventListener('change', () => construir());
   }
 
-  /* ---------- seleção por clique ---------- */
-  const raio = new THREE.Raycaster();
+  const raycaster = new THREE.Raycaster();
   let inicio = null;
-  renderer.domElement.addEventListener('pointerdown', (ev) => {
-    inicio = { x: ev.clientX, y: ev.clientY, t: performance.now() };
-  });
+  renderer.domElement.addEventListener('pointerdown', (ev) => (inicio = { x: ev.clientX, y: ev.clientY, t: performance.now() }));
   renderer.domElement.addEventListener('pointerup', (ev) => {
     if (!inicio || !aoSelecionar) return;
     const moveu = Math.hypot(ev.clientX - inicio.x, ev.clientY - inicio.y);
@@ -514,9 +494,8 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
     inicio = null;
     if (moveu > 6 || !rapido || !marcadores.length) return;
     const r = renderer.domElement.getBoundingClientRect();
-    const ndc = new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
-    raio.setFromCamera(ndc, camera);
-    const hit = raio.intersectObjects(marcadores, false)[0];
+    raycaster.setFromCamera(new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1), camera);
+    const hit = raycaster.intersectObjects(marcadores, false)[0];
     if (hit) aoSelecionar(hit.object.userData.parede);
   });
 
@@ -540,7 +519,6 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
       if ('girar' in o) controls.autoRotate = !!o.girar;
       if (dados && ('calor' in o || 'teto' in o)) construir();
     },
-    // para testes automatizados
-    _estado: () => ({ marcadores: marcadores.length, particulas: !!fatiaJato, janelas: janelasInfo }),
+    _estado: () => ({ marcadores: marcadores.length, janelas: janelasInfo, jato: !!jato }),
   };
 }

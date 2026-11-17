@@ -1,0 +1,12 @@
+{
+  "aplicarTipo": "sala",
+  "ambiente": { "largura": 4, "comprimento": 5, "peDireito": 2.7 },
+  "cidade": "rio-de-janeiro",
+  "cobertura": { "tipo": "laje_exposta", "cor": "media" },
+  "paredes": {
+    "A": { "tipo": "externa", "sol": "tarde", "janela": { "largura": 2.0, "altura": 1.4, "peitoril": 0.9 } },
+    "B": { "tipo": "externa", "sol": "manha" },
+    "C": { "tipo": "interna", "porta": { "ativa": true, "pos": 0.85 } },
+    "D": { "tipo": "climatizada" }
+  }
+}
