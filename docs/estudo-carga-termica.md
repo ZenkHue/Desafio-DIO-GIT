@@ -38,9 +38,16 @@ A regra das lojas é simples e conservadora para a maioria dos cômodos, mas **n
 
 ## 4. O método da v2, passo a passo
 
-### 4.1 Clima do dia de projeto
+### 4.1 Cidade e clima do dia de projeto
 
-Temperatura externa hora a hora `T(h) = T_máx − amplitude × f(h)`, com o perfil-padrão da ASHRAE (máxima às 15h, mínima às 5h). A umidade do ar de fora fica constante no dia, calculada na hora mais quente. Os valores por cidade são **aproximados** e podem ser editados no app.
+- **Qualquer um dos 5.570 municípios** pode ser escolhido. A busca ignora acentos e aceita "Cidade/UF". A base de nomes e coordenadas vem de [kelvins/municipios-brasileiros](https://github.com/kelvins/municipios-brasileiros) (licença MIT).
+- **O sol usa a latitude exata do município.**
+- **Clima:** há 86 **cidades de referência** (capitais e polos regionais do interior) com máxima, variação diária e umidade aproximadas. Para os demais municípios:
+  - a menos de 15 km de uma referência, usa a dela;
+  - mais longe, faz a **média das 3 referências mais próximas, pesada por 1/distância²**.
+  - O app mostra quais cidades e distâncias foram usadas. Exemplo: Salto de Pirapora (SP) usa Sorocaba (21 km), São Paulo (96 km) e Campinas (97 km), com máxima ~32 °C.
+- **Limitação:** a base não tem altitude. Cidade de **serra** pode sair mais quente que a realidade; Campos do Jordão, por exemplo, herda o clima do vale. Ajuste a máxima em "Ajustes avançados".
+- **Temperatura hora a hora:** `T(h) = T_máx − amplitude × f(h)`, com o perfil-padrão da ASHRAE (máxima às 15h, mínima às 5h). A umidade do ar de fora fica constante no dia, calculada na hora mais quente.
 
 ### 4.2 Sol de verdade
 
@@ -150,7 +157,7 @@ O aparelho nunca é colocado em cima de uma janela que chega à altura dele. Boa
 ## 7. Limitações
 
 1. Dia de projeto único (verão, céu claro), sem os 8.760 h do ano.
-2. Clima por cidade aproximado; não há tabela oficial da NBR 16401-1.
+2. Clima por cidade aproximado (86 referências, sem altitude); os outros municípios são interpolados. Não há tabela oficial da NBR 16401-1.
 3. "Sol o dia todo" usa o pior caso entre leste e oeste em cada hora (conservador).
 4. Sem sombreamento de prédios e árvores além das opções "não pega sol" e "fica na sombra".
 5. A carga de partida é uma estimativa simplificada do calor guardado. O tempo real para gelar depende da massa térmica real.
@@ -174,7 +181,8 @@ O consumo estimado soma a carga das horas de uso dividida pelo COP (inverter ~3,
 | Condição de ensaio 27 °C/35 °C e queda de rendimento por °C | Normas de ensaio e tabelas de fabricantes (genérico) | Média |
 | Calor médio de aparelhos | Estimativa de engenharia (potência × tempo ligado) | Média |
 | Temperatura dos vizinhos e carga de partida | Modelo simplificado próprio | **Média-baixa**: o usuário controla a partida |
-| Clima por cidade | Aproximado | **Média-baixa**: editável |
+| Clima por cidade | 86 referências aproximadas + interpolação por distância | **Média-baixa**: editável; pior em serra |
+| Coordenadas dos municípios | Base pública kelvins/municipios-brasileiros (MIT) | Alta |
 | COP e consumo | Ordem de grandeza | Baixa |
 
 ## 10. Fontes consultadas

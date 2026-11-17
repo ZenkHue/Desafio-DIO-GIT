@@ -44,7 +44,15 @@
           <label class="campo"><span>Pé-direito (m)</span><input data-bind="ambiente.peDireito" data-tipo="num" type="number" inputmode="decimal" min="2" max="6" step="0.05"></label>
         </div>
         <p class="area-info" id="areaInfo"></p>
-        <label class="campo"><span>Cidade</span><select data-bind="cidade" id="cidade"></select></label>
+        <div class="campo busca-cidade">
+          <label class="rotulo-campo" for="cidadeBusca">Cidade (todos os municípios do Brasil)</label>
+          <div class="combo">
+            <input id="cidadeBusca" type="search" autocomplete="off" spellcheck="false" placeholder="Digite o nome da sua cidade"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="cidadeLista">
+            <ul id="cidadeLista" class="sugestoes" role="listbox" aria-label="Cidades encontradas" hidden></ul>
+          </div>
+          <small class="dica" id="cidadeInfo"></small>
+        </div>
         <div class="grade">
           <label class="campo"><span>O que tem em cima?</span><select data-bind="cobertura.tipo" id="cobertura"></select></label>
           <label class="campo" id="campoCorTeto"><span>Cor do telhado / laje</span>
@@ -222,6 +230,7 @@
     <span><b id="barraBtus">— BTUs</b> <small id="barraInfo"></small></span><span aria-hidden="true">Ver resultado ↓</span>
   </a>
 
+  <script src="js/ar/municipios.js"></script>
   <script src="js/ar/nucleo.js"></script>
   <script src="js/ar/posicao.js"></script>
   <script type="module" src="js/ar/app.js"></script>

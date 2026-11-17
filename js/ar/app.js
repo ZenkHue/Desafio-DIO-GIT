@@ -85,7 +85,6 @@ function montar() {
   $('tipos').innerHTML =
     Object.entries(N.TIPOS).map(([k, t]) => `<label><input type="radio" name="tipo" value="${k}"><span>${t.icone} ${esc(t.rotulo)}</span></label>`).join('') +
     '<label><input type="radio" name="tipo" value="outro"><span>✏️ Outro</span></label>';
-  $('cidade').innerHTML = opcoes(N.CIDADES, 'nome');
   $('cobertura').innerHTML = opcoes(N.COBERTURAS);
   $('piso').innerHTML = opcoes(N.PISOS);
   $('atividade').innerHTML = opcoes(N.ATIVIDADES);
@@ -176,6 +175,7 @@ function escreverFormulario() {
     else el.value = v === null || v === undefined ? '' : v;
   }
   for (const r of document.querySelectorAll('input[name=tipo]')) r.checked = r.value === estado.tipo;
+  $('cidadeBusca').value = N.climaDaCidade(norm.cidade).nome;
   renderExtras();
 }
 
@@ -215,7 +215,7 @@ function visibilidade(norm) {
   }
   $('tempVal').textContent = `${norm.uso.temperatura} °C`;
   $('margemVal').textContent = `${Math.round(norm.avancado.margem * 100)}%`;
-  const c = N.CIDADES[norm.cidade];
+  const c = N.climaDaCidade(norm.cidade);
   $('tmax').placeholder = c.tmax;
   $('amp').placeholder = c.amp;
   $('ur').placeholder = c.ur;
@@ -262,6 +262,10 @@ function renderResumo(r) {
   else conclusao = ' O cálculo detalhado pede menos: este ambiente recebe pouco calor de fora. Se quiser folga extra, o tamanho das lojas também funciona.';
   $('comparacao').innerHTML = regra + conclusao;
   $('porque').innerHTML = r.explicacoes.map((t) => `<li>${esc(t)}</li>`).join('');
+  const cl = r.clima;
+  $('cidadeInfo').textContent = cl.estimado
+    ? `Clima estimado a partir de ${cl.fontes.map((f) => `${f.nome.replace(/ \(..\)$/, '')} (${f.km} km)`).join(', ')}: máxima ~${n1.format(cl.tmax)} °C. Cidade de serra ou litoral pode ser diferente; ajuste em "Ajustes avançados".`
+    : `Clima de referência: máxima ~${n1.format(cl.tmax)} °C, variação de ${n1.format(cl.amp)} °C no dia.`;
   $('areaInfo').textContent = `Área: ${n1.format(r.geometria.area)} m² · Volume: ${n0.format(r.geometria.volume)} m³`;
   $('barraBtus').textContent = `${qtd}${n0.format(d.capacidade)} BTUs`;
   $('barraInfo').textContent = `pico às ${hh(r.pico.hora)}`;
@@ -485,6 +489,69 @@ function ligar() {
     renderExtras();
     agendar();
   });
+
+  // ---------- busca de cidade (5.570 municípios, sem acento)
+  const busca = $('cidadeBusca');
+  const lista = $('cidadeLista');
+  let achados = [];
+  let ativo = -1;
+  const fechar = () => {
+    lista.hidden = true;
+    busca.setAttribute('aria-expanded', 'false');
+    ativo = -1;
+  };
+  const escolher = (m) => {
+    estado.cidade = 'ibge:' + m.codigo;
+    busca.value = `${m.nome} (${m.uf})`;
+    fechar();
+    busca.blur();
+    agendar();
+  };
+  const desenharLista = () => {
+    lista.innerHTML = achados.length
+      ? achados.map((m, i) => `<li role="option" id="cid-${i}" data-i="${i}" aria-selected="${i === ativo}">${esc(m.nome)} <small>${m.uf}</small></li>`).join('')
+      : '<li class="vazio" role="option" aria-disabled="true">Nenhuma cidade encontrada</li>';
+    lista.hidden = false;
+    busca.setAttribute('aria-expanded', 'true');
+    busca.setAttribute('aria-activedescendant', ativo >= 0 ? `cid-${ativo}` : '');
+  };
+  busca.addEventListener('input', (ev) => {
+    ev.stopPropagation();
+    achados = window.Municipios.buscar(busca.value, 8);
+    ativo = achados.length ? 0 : -1;
+    if (busca.value.trim().length < 2) return fechar();
+    desenharLista();
+  });
+  busca.addEventListener('change', (ev) => ev.stopPropagation());
+  busca.addEventListener('keydown', (ev) => {
+    if (lista.hidden) return;
+    if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      ativo = (ativo + (ev.key === 'ArrowDown' ? 1 : -1) + achados.length) % achados.length;
+      desenharLista();
+    } else if (ev.key === 'Enter') {
+      ev.preventDefault();
+      if (achados[ativo]) escolher(achados[ativo]);
+    } else if (ev.key === 'Escape') fechar();
+  });
+  lista.addEventListener('pointerdown', (ev) => {
+    const li = ev.target.closest('li[data-i]');
+    if (li) {
+      ev.preventDefault();
+      escolher(achados[Number(li.dataset.i)]);
+    }
+  });
+  busca.addEventListener('focus', () => {
+    // campo limpo para digitar; o nome atual fica como dica
+    busca.placeholder = busca.value || 'Digite o nome da sua cidade';
+    busca.value = '';
+  });
+  busca.addEventListener('blur', () =>
+    setTimeout(() => {
+      fechar();
+      busca.value = N.climaDaCidade(N.normalizar(estado).cidade).nome;
+    }, 150)
+  );
 
   $('miniPlanta').addEventListener('click', (ev) => {
     const g = ev.target.closest('.lado');

@@ -17,9 +17,9 @@
  * Eixos: x para a direita (largura), z para baixo (comprimento), y para cima.
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.Nucleo = factory();
-})(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./municipios.js'));
+  else root.Nucleo = factory(root.Municipios);
+})(typeof self !== 'undefined' ? self : this, function (Municipios) {
   'use strict';
 
   /* ===================================================================== constantes */
@@ -33,36 +33,100 @@
    * Clima de projeto de verão — VALORES APROXIMADOS de referência (editáveis no app).
    * tmax: temperatura máxima do dia quente (°C) · amp: amplitude diária (°C) · ur: umidade relativa na hora mais quente (%).
    */
+  /**
+   * Cidades de referência com clima de projeto de verão APROXIMADO (editável no app).
+   * tmax: máxima do dia quente (°C) · amp: variação no dia (°C) · ur: umidade relativa na hora mais quente (%).
+   * Para qualquer outro município, o clima é estimado pelas 3 referências mais próximas (ver climaDaCidade).
+   */
   const CIDADES = {
-    'sao-paulo': { nome: 'São Paulo (SP)', lat: -23.55, tmax: 31.5, amp: 9, ur: 50 },
-    campinas: { nome: 'Campinas (SP)', lat: -22.91, tmax: 32, amp: 10, ur: 45 },
-    'rio-de-janeiro': { nome: 'Rio de Janeiro (RJ)', lat: -22.91, tmax: 35.5, amp: 7, ur: 50 },
-    'belo-horizonte': { nome: 'Belo Horizonte (MG)', lat: -19.92, tmax: 31, amp: 10, ur: 45 },
-    vitoria: { nome: 'Vitória (ES)', lat: -20.32, tmax: 34, amp: 7, ur: 55 },
-    curitiba: { nome: 'Curitiba (PR)', lat: -25.43, tmax: 30, amp: 10, ur: 50 },
-    florianopolis: { nome: 'Florianópolis (SC)', lat: -27.59, tmax: 32, amp: 7, ur: 60 },
-    'porto-alegre': { nome: 'Porto Alegre (RS)', lat: -30.03, tmax: 34.5, amp: 10, ur: 45 },
-    brasilia: { nome: 'Brasília (DF)', lat: -15.79, tmax: 30.5, amp: 11, ur: 40 },
-    goiania: { nome: 'Goiânia (GO)', lat: -16.68, tmax: 34, amp: 12, ur: 35 },
-    cuiaba: { nome: 'Cuiabá (MT)', lat: -15.6, tmax: 38, amp: 11, ur: 40 },
-    'campo-grande': { nome: 'Campo Grande (MS)', lat: -20.47, tmax: 34, amp: 11, ur: 40 },
-    salvador: { nome: 'Salvador (BA)', lat: -12.97, tmax: 32, amp: 6, ur: 60 },
-    aracaju: { nome: 'Aracaju (SE)', lat: -10.91, tmax: 32, amp: 6, ur: 60 },
-    maceio: { nome: 'Maceió (AL)', lat: -9.67, tmax: 32, amp: 6, ur: 60 },
-    recife: { nome: 'Recife (PE)', lat: -8.05, tmax: 32, amp: 6, ur: 60 },
-    'joao-pessoa': { nome: 'João Pessoa (PB)', lat: -7.12, tmax: 32, amp: 6, ur: 60 },
-    natal: { nome: 'Natal (RN)', lat: -5.79, tmax: 32, amp: 6, ur: 60 },
-    fortaleza: { nome: 'Fortaleza (CE)', lat: -3.73, tmax: 32, amp: 7, ur: 60 },
-    teresina: { nome: 'Teresina (PI)', lat: -5.09, tmax: 38, amp: 12, ur: 35 },
-    'sao-luis': { nome: 'São Luís (MA)', lat: -2.53, tmax: 33, amp: 7, ur: 60 },
-    belem: { nome: 'Belém (PA)', lat: -1.46, tmax: 33.5, amp: 8, ur: 60 },
-    macapa: { nome: 'Macapá (AP)', lat: 0.03, tmax: 33.5, amp: 8, ur: 60 },
-    manaus: { nome: 'Manaus (AM)', lat: -3.12, tmax: 35, amp: 9, ur: 50 },
-    'boa-vista': { nome: 'Boa Vista (RR)', lat: 2.82, tmax: 35, amp: 10, ur: 45 },
-    'porto-velho': { nome: 'Porto Velho (RO)', lat: -8.76, tmax: 35, amp: 10, ur: 50 },
-    'rio-branco': { nome: 'Rio Branco (AC)', lat: -9.97, tmax: 35, amp: 11, ur: 50 },
-    palmas: { nome: 'Palmas (TO)', lat: -10.18, tmax: 37, amp: 12, ur: 35 },
+    'sao-paulo': { nome: 'São Paulo (SP)', ibge: 3550308, lat: -23.5329, lon: -46.6395, tmax: 31.5, amp: 9, ur: 50 },
+    'campinas': { nome: 'Campinas (SP)', ibge: 3509502, lat: -22.9053, lon: -47.0659, tmax: 32, amp: 10, ur: 45 },
+    'sorocaba': { nome: 'Sorocaba (SP)', ibge: 3552205, lat: -23.4969, lon: -47.4451, tmax: 32, amp: 10, ur: 45 },
+    'ribeirao-preto': { nome: 'Ribeirão Preto (SP)', ibge: 3543402, lat: -21.1699, lon: -47.8099, tmax: 33.5, amp: 11, ur: 40 },
+    'bauru': { nome: 'Bauru (SP)', ibge: 3506003, lat: -22.3246, lon: -49.0871, tmax: 33, amp: 11, ur: 40 },
+    'sao-jose-do-rio-preto': { nome: 'São José do Rio Preto (SP)', ibge: 3549805, lat: -20.8113, lon: -49.3758, tmax: 34.5, amp: 11, ur: 38 },
+    'presidente-prudente': { nome: 'Presidente Prudente (SP)', ibge: 3541406, lat: -22.1207, lon: -51.3925, tmax: 34, amp: 11, ur: 40 },
+    'aracatuba': { nome: 'Araçatuba (SP)', ibge: 3502804, lat: -21.2076, lon: -50.4401, tmax: 35, amp: 11, ur: 38 },
+    'santos': { nome: 'Santos (SP)', ibge: 3548500, lat: -23.9535, lon: -46.335, tmax: 33, amp: 6, ur: 65 },
+    'sao-jose-dos-campos': { nome: 'São José dos Campos (SP)', ibge: 3549904, lat: -23.1896, lon: -45.8841, tmax: 32, amp: 10, ur: 50 },
+    'piracicaba': { nome: 'Piracicaba (SP)', ibge: 3538709, lat: -22.7338, lon: -47.6476, tmax: 33, amp: 11, ur: 45 },
+    'franca': { nome: 'Franca (SP)', ibge: 3516200, lat: -20.5352, lon: -47.4039, tmax: 31.5, amp: 10, ur: 45 },
+    'marilia': { nome: 'Marília (SP)', ibge: 3529005, lat: -22.2171, lon: -49.9501, tmax: 32, amp: 10, ur: 45 },
+    'registro': { nome: 'Registro (SP)', ibge: 3542602, lat: -24.4979, lon: -47.8449, tmax: 33, amp: 8, ur: 60 },
+    'rio-de-janeiro': { nome: 'Rio de Janeiro (RJ)', ibge: 3304557, lat: -22.9129, lon: -43.2003, tmax: 35.5, amp: 7, ur: 50 },
+    'campos-dos-goytacazes': { nome: 'Campos dos Goytacazes (RJ)', ibge: 3301009, lat: -21.7622, lon: -41.3181, tmax: 34, amp: 9, ur: 55 },
+    'petropolis': { nome: 'Petrópolis (RJ)', ibge: 3303906, lat: -22.52, lon: -43.1926, tmax: 28, amp: 9, ur: 60 },
+    'volta-redonda': { nome: 'Volta Redonda (RJ)', ibge: 3306305, lat: -22.5202, lon: -44.0996, tmax: 34, amp: 10, ur: 50 },
+    'belo-horizonte': { nome: 'Belo Horizonte (MG)', ibge: 3106200, lat: -19.9102, lon: -43.9266, tmax: 31, amp: 10, ur: 45 },
+    'uberlandia': { nome: 'Uberlândia (MG)', ibge: 3170206, lat: -18.9141, lon: -48.2749, tmax: 32, amp: 10, ur: 40 },
+    'uberaba': { nome: 'Uberaba (MG)', ibge: 3170107, lat: -19.7472, lon: -47.9381, tmax: 33, amp: 11, ur: 40 },
+    'montes-claros': { nome: 'Montes Claros (MG)', ibge: 3143302, lat: -16.7282, lon: -43.8578, tmax: 33, amp: 12, ur: 35 },
+    'juiz-de-fora': { nome: 'Juiz de Fora (MG)', ibge: 3136702, lat: -21.7595, lon: -43.3398, tmax: 30, amp: 9, ur: 55 },
+    'governador-valadares': { nome: 'Governador Valadares (MG)', ibge: 3127701, lat: -18.8545, lon: -41.9555, tmax: 35, amp: 11, ur: 45 },
+    'pocos-de-caldas': { nome: 'Poços de Caldas (MG)', ibge: 3151800, lat: -21.78, lon: -46.5692, tmax: 28, amp: 10, ur: 55 },
+    'varginha': { nome: 'Varginha (MG)', ibge: 3170701, lat: -21.5556, lon: -45.4364, tmax: 30.5, amp: 10, ur: 50 },
+    'vitoria': { nome: 'Vitória (ES)', ibge: 3205309, lat: -20.3155, lon: -40.3128, tmax: 34, amp: 7, ur: 55 },
+    'curitiba': { nome: 'Curitiba (PR)', ibge: 4106902, lat: -25.4195, lon: -49.2646, tmax: 30, amp: 10, ur: 50 },
+    'londrina': { nome: 'Londrina (PR)', ibge: 4113700, lat: -23.304, lon: -51.1691, tmax: 32, amp: 10, ur: 45 },
+    'maringa': { nome: 'Maringá (PR)', ibge: 4115200, lat: -23.4205, lon: -51.9333, tmax: 32.5, amp: 10, ur: 45 },
+    'cascavel': { nome: 'Cascavel (PR)', ibge: 4104808, lat: -24.9573, lon: -53.459, tmax: 30.5, amp: 10, ur: 50 },
+    'foz-do-iguacu': { nome: 'Foz do Iguaçu (PR)', ibge: 4108304, lat: -25.5427, lon: -54.5827, tmax: 34.5, amp: 11, ur: 50 },
+    'ponta-grossa': { nome: 'Ponta Grossa (PR)', ibge: 4119905, lat: -25.0916, lon: -50.1668, tmax: 29.5, amp: 10, ur: 55 },
+    'florianopolis': { nome: 'Florianópolis (SC)', ibge: 4205407, lat: -27.5945, lon: -48.5477, tmax: 32, amp: 7, ur: 60 },
+    'joinville': { nome: 'Joinville (SC)', ibge: 4209102, lat: -26.3045, lon: -48.8487, tmax: 33, amp: 8, ur: 60 },
+    'blumenau': { nome: 'Blumenau (SC)', ibge: 4202404, lat: -26.9155, lon: -49.0709, tmax: 34, amp: 9, ur: 55 },
+    'chapeco': { nome: 'Chapecó (SC)', ibge: 4204202, lat: -27.1004, lon: -52.6152, tmax: 31, amp: 10, ur: 50 },
+    'lages': { nome: 'Lages (SC)', ibge: 4209300, lat: -27.815, lon: -50.3259, tmax: 28.5, amp: 11, ur: 55 },
+    'porto-alegre': { nome: 'Porto Alegre (RS)', ibge: 4314902, lat: -30.0318, lon: -51.2065, tmax: 34.5, amp: 10, ur: 45 },
+    'caxias-do-sul': { nome: 'Caxias do Sul (RS)', ibge: 4305108, lat: -29.1629, lon: -51.1792, tmax: 29, amp: 9, ur: 55 },
+    'santa-maria': { nome: 'Santa Maria (RS)', ibge: 4316907, lat: -29.6868, lon: -53.8149, tmax: 34, amp: 11, ur: 45 },
+    'pelotas': { nome: 'Pelotas (RS)', ibge: 4314407, lat: -31.7649, lon: -52.3371, tmax: 31, amp: 9, ur: 55 },
+    'uruguaiana': { nome: 'Uruguaiana (RS)', ibge: 4322400, lat: -29.7614, lon: -57.0853, tmax: 35, amp: 12, ur: 40 },
+    'passo-fundo': { nome: 'Passo Fundo (RS)', ibge: 4314100, lat: -28.2576, lon: -52.4091, tmax: 30, amp: 10, ur: 50 },
+    'brasilia': { nome: 'Brasília (DF)', ibge: 5300108, lat: -15.7795, lon: -47.9297, tmax: 30.5, amp: 11, ur: 40 },
+    'goiania': { nome: 'Goiânia (GO)', ibge: 5208707, lat: -16.6864, lon: -49.2643, tmax: 34, amp: 12, ur: 35 },
+    'anapolis': { nome: 'Anápolis (GO)', ibge: 5201108, lat: -16.3281, lon: -48.953, tmax: 32, amp: 11, ur: 40 },
+    'rio-verde': { nome: 'Rio Verde (GO)', ibge: 5218805, lat: -17.7923, lon: -50.9192, tmax: 33, amp: 11, ur: 40 },
+    'cuiaba': { nome: 'Cuiabá (MT)', ibge: 5103403, lat: -15.601, lon: -56.0974, tmax: 38, amp: 11, ur: 40 },
+    'rondonopolis': { nome: 'Rondonópolis (MT)', ibge: 5107602, lat: -16.4673, lon: -54.6372, tmax: 36, amp: 12, ur: 40 },
+    'sinop': { nome: 'Sinop (MT)', ibge: 5107909, lat: -11.8604, lon: -55.5091, tmax: 35, amp: 11, ur: 50 },
+    'campo-grande': { nome: 'Campo Grande (MS)', ibge: 5002704, lat: -20.4486, lon: -54.6295, tmax: 34, amp: 11, ur: 40 },
+    'dourados': { nome: 'Dourados (MS)', ibge: 5003702, lat: -22.2231, lon: -54.812, tmax: 34, amp: 11, ur: 45 },
+    'corumba': { nome: 'Corumbá (MS)', ibge: 5003207, lat: -19.0077, lon: -57.651, tmax: 37, amp: 10, ur: 45 },
+    'tres-lagoas': { nome: 'Três Lagoas (MS)', ibge: 5008305, lat: -20.7849, lon: -51.7007, tmax: 35, amp: 11, ur: 40 },
+    'salvador': { nome: 'Salvador (BA)', ibge: 2927408, lat: -12.9718, lon: -38.5011, tmax: 32, amp: 6, ur: 60 },
+    'feira-de-santana': { nome: 'Feira de Santana (BA)', ibge: 2910800, lat: -12.2664, lon: -38.9663, tmax: 33, amp: 9, ur: 50 },
+    'vitoria-da-conquista': { nome: 'Vitória da Conquista (BA)', ibge: 2933307, lat: -14.8615, lon: -40.8442, tmax: 29, amp: 9, ur: 55 },
+    'barreiras': { nome: 'Barreiras (BA)', ibge: 2903201, lat: -12.1439, lon: -44.9968, tmax: 34.5, amp: 13, ur: 30 },
+    'juazeiro': { nome: 'Juazeiro (BA)', ibge: 2918407, lat: -9.4162, lon: -40.5033, tmax: 36, amp: 12, ur: 35 },
+    'ilheus': { nome: 'Ilhéus (BA)', ibge: 2913606, lat: -14.793, lon: -39.046, tmax: 32, amp: 6, ur: 65 },
+    'aracaju': { nome: 'Aracaju (SE)', ibge: 2800308, lat: -10.9091, lon: -37.0677, tmax: 32, amp: 6, ur: 60 },
+    'maceio': { nome: 'Maceió (AL)', ibge: 2704302, lat: -9.666, lon: -35.735, tmax: 32, amp: 6, ur: 60 },
+    'recife': { nome: 'Recife (PE)', ibge: 2611606, lat: -8.0467, lon: -34.8771, tmax: 32, amp: 6, ur: 60 },
+    'petrolina': { nome: 'Petrolina (PE)', ibge: 2611101, lat: -9.3887, lon: -40.5027, tmax: 36, amp: 12, ur: 35 },
+    'caruaru': { nome: 'Caruaru (PE)', ibge: 2604106, lat: -8.2845, lon: -35.9699, tmax: 32, amp: 10, ur: 50 },
+    'joao-pessoa': { nome: 'João Pessoa (PB)', ibge: 2507507, lat: -7.1151, lon: -34.8641, tmax: 32, amp: 6, ur: 60 },
+    'campina-grande': { nome: 'Campina Grande (PB)', ibge: 2504009, lat: -7.222, lon: -35.8731, tmax: 31, amp: 9, ur: 55 },
+    'natal': { nome: 'Natal (RN)', ibge: 2408102, lat: -5.7936, lon: -35.1986, tmax: 32, amp: 6, ur: 60 },
+    'mossoro': { nome: 'Mossoró (RN)', ibge: 2408003, lat: -5.1837, lon: -37.3474, tmax: 35, amp: 9, ur: 50 },
+    'fortaleza': { nome: 'Fortaleza (CE)', ibge: 2304400, lat: -3.7166, lon: -38.5423, tmax: 32, amp: 7, ur: 60 },
+    'juazeiro-do-norte': { nome: 'Juazeiro do Norte (CE)', ibge: 2307304, lat: -7.1962, lon: -39.3076, tmax: 35, amp: 11, ur: 40 },
+    'sobral': { nome: 'Sobral (CE)', ibge: 2312908, lat: -3.6891, lon: -40.3482, tmax: 37, amp: 11, ur: 40 },
+    'teresina': { nome: 'Teresina (PI)', ibge: 2211001, lat: -5.0919, lon: -42.8034, tmax: 38, amp: 12, ur: 35 },
+    'sao-luis': { nome: 'São Luís (MA)', ibge: 2111300, lat: -2.5387, lon: -44.2825, tmax: 33, amp: 7, ur: 60 },
+    'imperatriz': { nome: 'Imperatriz (MA)', ibge: 2105302, lat: -5.5185, lon: -47.4777, tmax: 35, amp: 11, ur: 50 },
+    'belem': { nome: 'Belém (PA)', ibge: 1501402, lat: -1.4554, lon: -48.4898, tmax: 33.5, amp: 8, ur: 60 },
+    'santarem': { nome: 'Santarém (PA)', ibge: 1506807, lat: -2.4385, lon: -54.6996, tmax: 34, amp: 9, ur: 60 },
+    'maraba': { nome: 'Marabá (PA)', ibge: 1504208, lat: -5.3807, lon: -49.1327, tmax: 35, amp: 10, ur: 55 },
+    'macapa': { nome: 'Macapá (AP)', ibge: 1600303, lat: 0.0349, lon: -51.0694, tmax: 33.5, amp: 8, ur: 60 },
+    'manaus': { nome: 'Manaus (AM)', ibge: 1302603, lat: -3.1187, lon: -60.0212, tmax: 35, amp: 9, ur: 50 },
+    'boa-vista': { nome: 'Boa Vista (RR)', ibge: 1400100, lat: 2.8238, lon: -60.6753, tmax: 35, amp: 10, ur: 45 },
+    'porto-velho': { nome: 'Porto Velho (RO)', ibge: 1100205, lat: -8.7608, lon: -63.8999, tmax: 35, amp: 10, ur: 50 },
+    'rio-branco': { nome: 'Rio Branco (AC)', ibge: 1200401, lat: -9.975, lon: -67.8243, tmax: 35, amp: 11, ur: 50 },
+    'palmas': { nome: 'Palmas (TO)', ibge: 1721000, lat: -10.24, lon: -48.3558, tmax: 37, amp: 12, ur: 35 },
+    'araguaina': { nome: 'Araguaína (TO)', ibge: 1702109, lat: -7.1924, lon: -48.2044, tmax: 35.5, amp: 12, ur: 45 },
   };
+
 
   // Fração da amplitude diária abaixo da máxima, por hora (0h..23h). Perfil-padrão da ASHRAE (máxima às 15h, mínima às 5h).
   const FRACAO_AMPLITUDE = [0.82, 0.87, 0.92, 0.96, 0.99, 1.0, 0.98, 0.93, 0.84, 0.71, 0.56, 0.39, 0.23, 0.11, 0.03, 0.0, 0.03, 0.1, 0.21, 0.34, 0.47, 0.58, 0.68, 0.76];
@@ -268,6 +332,67 @@
     return out;
   }
 
+  /* ===================================================================== cidades */
+  /** Distância em km entre dois pontos (haversine). */
+  function distanciaKm(lat1, lon1, lat2, lon2) {
+    const dLat = (lat2 - lat1) * RAD;
+    const dLon = (lon2 - lon1) * RAD;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * RAD) * Math.cos(lat2 * RAD) * Math.sin(dLon / 2) ** 2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  /**
+   * Aceita: chave de referência ('sao-paulo'), 'ibge:3545308' ou um nome ("Salto de Pirapora/SP").
+   * Devolve a forma canônica ou null.
+   */
+  function resolverCidade(valor) {
+    if (valor === null || valor === undefined) return null;
+    const v = String(valor).trim();
+    if (CIDADES[v]) return v;
+    const m = v.match(/^ibge:(\d{7})$/);
+    if (m) return Municipios && Municipios.porCodigo(m[1]) ? v : null;
+    if (Municipios && v.length >= 3) {
+      const achado = Municipios.buscar(v, 1)[0];
+      if (achado) return 'ibge:' + achado.codigo;
+    }
+    return null;
+  }
+
+  /**
+   * Clima de projeto da cidade (sem as alterações manuais do usuário).
+   * Município fora da lista de referência: média das 3 referências mais próximas, pesada por 1/distância².
+   */
+  function climaDaCidade(cidade) {
+    if (CIDADES[cidade]) {
+      const c = CIDADES[cidade];
+      return { nome: c.nome, lat: c.lat, lon: c.lon, tmax: c.tmax, amp: c.amp, ur: c.ur, fontes: [{ nome: c.nome, km: 0 }], estimado: false };
+    }
+    const mun = Municipios && Municipios.porCodigo(String(cidade).replace('ibge:', ''));
+    if (!mun) return climaDaCidade('sao-paulo');
+    const prox = Object.values(CIDADES)
+      .map((c) => ({ c, km: distanciaKm(mun.lat, mun.lon, c.lat, c.lon) }))
+      .sort((a, b) => a.km - b.km)
+      .slice(0, 3);
+    const nome = `${mun.nome} (${mun.uf})`;
+    if (prox[0].km < 15) {
+      const c = prox[0].c;
+      return { nome, lat: mun.lat, lon: mun.lon, tmax: c.tmax, amp: c.amp, ur: c.ur, fontes: [{ nome: c.nome, km: arred(prox[0].km) }], estimado: true };
+    }
+    let soma = 0;
+    const acc = { tmax: 0, amp: 0, ur: 0 };
+    for (const p of prox) {
+      const w = 1 / (p.km * p.km);
+      soma += w;
+      for (const k of Object.keys(acc)) acc[k] += w * p.c[k];
+    }
+    return {
+      nome, lat: mun.lat, lon: mun.lon,
+      tmax: arred(acc.tmax / soma, 1), amp: arred(acc.amp / soma, 1), ur: arred(acc.ur / soma),
+      fontes: prox.map((p) => ({ nome: p.c.nome, km: arred(p.km) })),
+      estimado: true,
+    };
+  }
+
   /* ===================================================================== psicrometria */
   const pressaoSaturacao = (t) => 0.61094 * Math.exp((17.625 * t) / (t + 243.04)); // kPa
   function umidadeAbsoluta(t, ur) {
@@ -363,7 +488,7 @@
     e.ambiente.largura = limitar(num(e.ambiente.largura, 3), 1, 40);
     e.ambiente.comprimento = limitar(num(e.ambiente.comprimento, 4), 1, 40);
     e.ambiente.peDireito = limitar(num(e.ambiente.peDireito, 2.6), 2, 6);
-    if (!CIDADES[e.cidade]) e.cidade = 'sao-paulo';
+    e.cidade = resolverCidade(e.cidade) || 'sao-paulo';
     if (!TIPOS[e.tipo] && e.tipo !== 'outro') e.tipo = 'outro';
     if (!COBERTURAS[e.cobertura.tipo]) e.cobertura.tipo = 'apartamento';
     if (!ABSORTANCIA[e.cobertura.cor]) e.cobertura.cor = 'media';
@@ -523,12 +648,12 @@
   }
 
   function climaDe(e) {
-    const c = CIDADES[e.cidade];
+    const c = climaDaCidade(e.cidade);
     const tmax = e.clima.tmax !== null ? e.clima.tmax : c.tmax;
     const amp = e.clima.amp !== null ? e.clima.amp : c.amp;
     const ur = e.clima.ur !== null ? e.clima.ur : c.ur;
     const te = FRACAO_AMPLITUDE.map((f) => tmax - amp * f);
-    return { cidade: c.nome, lat: c.lat, tmax, amp, ur, te, w: umidadeAbsoluta(tmax, ur) };
+    return { cidade: c.nome, lat: c.lat, lon: c.lon, fontes: c.fontes, estimado: c.estimado, tmax, amp, ur, te, w: umidadeAbsoluta(tmax, ur) };
   }
 
   /**
@@ -942,7 +1067,7 @@
   return {
     W_PARA_BTU, PAREDES, CAPACIDADES, ALCANCE, CIDADES, FRACAO_AMPLITUDE, CEU, MATERIAIS, COBERTURAS, ABSORTANCIA,
     PISOS, PARTIDAS, VIDROS, PROTECOES, ATIVIDADES, APARELHOS, APARELHOS_POR_ID, ILUMINACAO, INFILTRACAO, RTS, DIRECOES, EXPOSICOES, TIPOS, PADRAO,
-    calcular, normalizar, aplicarTipo, oportunidades, regraLojas, horasDeUso, posicaoSol, radiacaoVertical, radiacaoHorizontal,
+    calcular, normalizar, aplicarTipo, climaDaCidade, resolverCidade, distanciaKm, oportunidades, regraLojas, horasDeUso, posicaoSol, radiacaoVertical, radiacaoHorizontal,
     fatorAngular, exposicaoParede, azimuteParede, conducaoComAtraso, aplicarRTS, umidadeAbsoluta, geometria, comprimentoParede,
     codificar, decodificar, mesclar, arred,
   };
