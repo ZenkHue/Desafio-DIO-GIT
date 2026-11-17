@@ -19,28 +19,30 @@ Simula o salário líquido de um trabalhador CLT, com as tabelas de **2026**.
 - **Descontos**: vale-transporte (6%, limitado ao custo real), vale-refeição, plano de saúde, pensão e outros.
 - **FGTS** (8%, depósito do empregador), **13º salário** (1ª e 2ª parcelas) e **férias + 1/3**.
 
-## Calculadora Térmica de Ar-condicionado
+## Calculadora de BTUs (ar-condicionado)
 
-Calcula a **carga térmica (BTU/h)** de um ambiente e recomenda a capacidade comercial, **mostra o ambiente em 3D** e **sugere onde instalar** a evaporadora e a condensadora.
+Diz **quantos BTUs** o ambiente precisa, mostra **de onde vem o calor hora a hora** e **onde instalar** o aparelho, com o ambiente em 3D.
 
-- **Carga por componente** na hora de pico: paredes (por orientação, cor e material), janelas (vidro e proteção solar), cobertura, pessoas (sensível + latente), equipamentos, iluminação, infiltração e renovação de ar. Margem de segurança ajustável.
-- **Clima de projeto** por cidade (valores de referência aproximados, editáveis), uso diurno ou noturno.
-- **Visualização 3D** (Three.js): paredes com **mapa de calor**, janelas e proteções, móveis, evaporadora com **jato de ar animado**, condensadora, tubulação e alternativas clicáveis. Vistas isométrica, superior e frontal.
-- **Planta 2D interativa**: arraste cama, mesa e sofá; o sugestor evita soprar direto neles.
-- **Onde instalar**: pontua posições em cada parede (cobertura do ar, conforto, instalação e tubulação, proximidade da carga, porta e cantos) e explica motivos e alertas.
-- **Consultor "e se?"**: quanto cada melhoria (proteção solar externa, película, isolar a cobertura, LED...) reduz a carga, recalculando o ambiente inteiro.
-- **Energia**: estimativa de consumo e custo mensal (inverter × convencional).
+- **Do jeito que o brasileiro fala:** tipo de ambiente (quarto, sala, cozinha…), "a parede pega sol de manhã, à tarde ou o dia todo?", "o que tem em cima? laje com telhado, só telha, outro andar…", "quando o ar fica ligado?". Quem sabe a orientação pode usar a bússola.
+- **Cálculo hora a hora (0h–23h)**, como os softwares profissionais: sol na posição real para a latitude da cidade, temperatura variando no dia, atraso térmico das paredes (o sol da tarde vira calor à noite), sol pelas janelas com séries radiantes (RTS), vizinhos e andares, pessoas, aparelhos com horário de uso, ar de fora e **carga de partida** (o calor acumulado quando o ar fica desligado).
+- **Rendimento real do aparelho:** a etiqueta vale para 27 °C dentro e 35 °C fora; a 23 °C ele rende ~10% menos, e o app já desconta isso.
+- **Resultado em tamanhos comerciais** (7.500 a 60.000 BTUs), lado a lado com a **regra das lojas** (600/800 BTU/m²) e a explicação da diferença, incluindo o aviso de "no limite" entre dois tamanhos.
+- **Gráfico do calor por hora**, com o que o aparelho entrega e as horas com o ar desligado; tabela hora a hora.
+- **3D** com o sol andando conforme a hora escolhida, mapa de calor por parede, janelas, portas, móveis, jato de ar, condensadora e alternativas clicáveis; **planta 2D** com móveis arrastáveis.
+- **Onde instalar:** nota 0–100 para cada parede (alcance do ar, conforto, condensadora fora do sol da tarde, tubulação, portas).
+- **Como gastar menos:** o app recalcula tudo para cada melhoria (toldo, película, isolar o teto, forro, cor clara…) e diz se ela permite comprar um aparelho menor.
+- **Link do cenário:** o botão "Copiar link deste cenário" gera um endereço que abre exatamente o mesmo ambiente em outro aparelho.
 
-Leia o **[estudo técnico](docs/estudo-carga-termica.md)** com método, equações, premissas e o grau de confiança de cada dado.
+Leia o **[estudo técnico](docs/estudo-carga-termica.md)**: método, fórmulas, comparação com as ferramentas de mercado, cenários de referência e grau de confiança de cada dado.
 
 ### Agente especialista
 
-`.claude/agents/especialista-ar-condicionado.md` define um subagente do Claude Code (invoque pelo nome ou peça "use o especialista em ar-condicionado") que levanta os dados do ambiente, calcula pelo **mesmo motor do app** via CLI e responde com carga, equipamento, posição e melhorias, sempre explicitando premissas e incertezas.
+`.claude/agents/especialista-ar-condicionado.md` define um subagente do Claude Code. Ele levanta os dados do ambiente, calcula pelo **mesmo motor do app** e responde com BTUs, motivo, comparação com as lojas, onde instalar e melhorias.
 
 ```bash
-node scripts/carga-termica.js scripts/exemplos/sala-oeste.json   # resumo em texto
+node scripts/carga-termica.js scripts/exemplos/quarto.json        # resumo em texto
+node scripts/carga-termica.js --link "https://…/ar-condicionado.html#c=…"   # cenário de um link do app
 node scripts/carga-termica.js caso.json --json                    # resultado completo
-node scripts/carga-termica.js --exemplo                           # modelo de entrada
 ```
 
 ## Como usar
@@ -72,9 +74,9 @@ Ao mudar qualquer arquivo do app, incremente `CACHE` em `sw.js` para os aparelho
 | Arquivo | Função |
 |---|---|
 | `js/calc.js`, `js/app.js` | Salário líquido: regras e tabelas (`TABELAS`) e interface |
-| `js/thermal.js` | Carga térmica, psicrometria, dimensionamento, "e se?" e energia (sem DOM) |
-| `js/placement.js` | Pontuação das posições da evaporadora (sem DOM) |
-| `js/room3d.js`, `js/planta.js`, `js/ar-app.js` | Visualização 3D, planta 2D e interface da calculadora térmica |
+| `js/ar/nucleo.js` | Cálculo hora a hora: sol, clima, paredes, janelas, pessoas, aparelhos, partida, dimensionamento, "e se?" e link (sem DOM) |
+| `js/ar/posicao.js` | Onde instalar: nota de cada posição (sem DOM) |
+| `js/ar/app.js`, `grafico.js`, `visual3d.js`, `planta.js` | Interface, gráfico hora a hora, 3D e planta |
 | `vendor/` | three.js r170 e OrbitControls (MIT), embarcados para funcionar offline |
 | `scripts/carga-termica.js` | CLI do motor térmico (usada pelo agente) |
 | `docs/estudo-carga-termica.md` | Estudo técnico |

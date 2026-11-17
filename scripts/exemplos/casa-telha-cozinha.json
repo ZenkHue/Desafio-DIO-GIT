@@ -1,0 +1,13 @@
+{
+  "aplicarTipo": "cozinha",
+  "ambiente": { "largura": 3, "comprimento": 3.5, "peDireito": 2.8 },
+  "cidade": "cuiaba",
+  "cobertura": { "tipo": "telha", "cor": "media" },
+  "piso": "terreo",
+  "paredes": {
+    "A": { "tipo": "externa", "sol": "manha", "janela": { "largura": 1.0, "altura": 1.0, "peitoril": 1.1 } },
+    "B": { "tipo": "interna", "porta": { "ativa": true } },
+    "C": { "tipo": "interna" },
+    "D": { "tipo": "externa", "sol": "tarde" }
+  }
+}
