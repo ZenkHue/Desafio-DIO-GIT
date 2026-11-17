@@ -188,6 +188,7 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
   let chaveGeometria = '';
   let fatiaJato = null; // dados para animar partículas
   let marcadores = [];
+  let janelasInfo = []; // para testes: posição real das janelas no 3D
   let visivel = true;
   const escuro = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
 
@@ -212,6 +213,7 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
   function construir() {
     limpar(modelo);
     marcadores = [];
+    janelasInfo = [];
     fatiaJato = null;
     if (!dados) return;
     const { res, sug, selecionado, Pos } = dados;
@@ -291,6 +293,7 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
         vidro.position.set(base.x - g.n.x * ESPESSURA * 0.5, cy, base.z - g.n.z * ESPESSURA * 0.5);
         arestas(vidro, 0x1d5f8a, 1);
         modelo.add(vidro);
+        janelasInfo.push({ parede: k, x: vidro.position.x, y: vidro.position.y, z: vidro.position.z });
 
         const prot = jc.protecao;
         if (prot === 'externa') {
@@ -538,6 +541,6 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
       if (dados && ('calor' in o || 'teto' in o)) construir();
     },
     // para testes automatizados
-    _estado: () => ({ marcadores: marcadores.length, particulas: !!fatiaJato }),
+    _estado: () => ({ marcadores: marcadores.length, particulas: !!fatiaJato, janelas: janelasInfo }),
   };
 }

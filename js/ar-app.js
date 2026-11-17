@@ -354,7 +354,7 @@ function atualizar() {
   $('itemGirar').disabled = itemSel === null;
   $('itemRemover').disabled = itemSel === null;
   salvar();
-  window.__ar = { res, sug, selecionado }; // facilita testes/depuração
+  window.__ar = { res, sug, selecionado, viewer }; // facilita testes/depuração
 }
 
 function agendar() {

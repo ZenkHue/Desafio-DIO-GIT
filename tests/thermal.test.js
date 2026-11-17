@@ -230,3 +230,22 @@ test('porta: largura em texto é convertida e limitada pela parede', () => {
   assert.equal(T.calcular({ porta: { largura: 99 } }).entrada.porta.largura, 3.6); // parede S tem 4 m
   assert.equal(T.calcular({ porta: { parede: 'X' } }).entrada.porta.parede, 'S');
 });
+
+test('janela: campos em texto viram número e a janela cabe na parede e no pé-direito', () => {
+  // exatamente como a interface envia (strings)
+  const r = T.calcular({ paredes: { O: { janela: { largura: '1.5', altura: '1.2', peitoril: '1', pos: '0.5' } } } });
+  const j = r.entrada.paredes.O.janela;
+  for (const campo of ['largura', 'altura', 'peitoril', 'pos']) assert.equal(typeof j[campo], 'number', campo);
+  assert.equal(j.peitoril, 1);
+  assert.ok(j.peitoril + j.altura <= r.entrada.ambiente.peDireito, 'janela dentro do pé-direito');
+  assert.equal(j.pos, 0.5);
+});
+
+test('janela: valores absurdos são limitados (peitoril alto, janela perto do canto, janela maior que a parede)', () => {
+  const r = T.calcular({ paredes: { N: { janela: { largura: '3', altura: '1.5', peitoril: '5', pos: '0.05' } } } });
+  const j = r.entrada.paredes.N.janela; // parede norte tem 4 m, pé-direito 2,7 m
+  assert.ok(j.peitoril + j.altura <= 2.7 - 0.1 + 1e-9);
+  const meia = j.largura / 2;
+  assert.ok(j.pos * 4 - meia >= -1e-9 && j.pos * 4 + meia <= 4 + 1e-9, 'janela inteira dentro da parede');
+  assert.ok(j.largura <= 3.6);
+});

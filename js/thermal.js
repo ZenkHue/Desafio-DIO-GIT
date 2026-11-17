@@ -189,6 +189,18 @@
     if (!compPorta[e.porta.parede]) e.porta.parede = 'S';
     e.porta.largura = limitar(num(e.porta.largura, 0.8), 0, Math.max(0, compPorta[e.porta.parede] - 0.4));
     e.porta.pos = limitar(num(e.porta.pos, 0.85), 0.05, 0.95);
+    // Janelas: a interface envia texto; converte e garante que a janela caiba na parede e no pé-direito.
+    for (const k of ['N', 'S', 'L', 'O']) {
+      const j = e.paredes[k].janela;
+      const len = compPorta[k];
+      const pe = e.ambiente.peDireito;
+      j.largura = limitar(num(j.largura), 0, Math.max(0, len - 0.4));
+      j.altura = limitar(num(j.altura, 1.2), 0, Math.max(0, pe - 0.2));
+      j.peitoril = limitar(num(j.peitoril, 1), 0, Math.max(0, pe - j.altura - 0.1));
+      const meia = j.largura / 2 + 0.1;
+      const centro = limitar(limitar(num(j.pos, 0.5), 0.05, 0.95) * len, Math.min(meia, len / 2), Math.max(len - meia, len / 2));
+      j.pos = centro / len;
+    }
     e.equipamentos = (e.equipamentos || []).map((q) => ({
       nome: String(q.nome || 'Equipamento'),
       qtd: Math.max(0, Math.floor(num(q.qtd))),
