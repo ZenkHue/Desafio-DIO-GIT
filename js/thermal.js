@@ -56,6 +56,7 @@
   // dTsol: acréscimo de temperatura equivalente por radiação solar (K) para cor média, hora de pico.
   const COBERTURAS = {
     exposta: { rotulo: 'Laje descoberta, sem telhado (sol direto)', U: 3.0, dTsol: 18, amort: 0.8 },
+    telhado_direto: { rotulo: 'Telhado direto, sem laje e sem forro (telha à vista)', U: 4.5, dTsol: 20, amort: 1.0 },
     atico: { rotulo: 'Laje ou forro com telhado por cima (ático)', U: 1.5, dTsol: 8, amort: 0.9 },
     isolada: { rotulo: 'Cobertura com isolamento térmico (manta, lã, EPS)', U: 0.6, dTsol: 8, amort: 0.9 },
     andar_nc: { rotulo: 'Outro andar acima, sem ar-condicionado', U: 2.5, dTsol: 0, amort: 1, interna: true },
@@ -495,11 +496,15 @@
           e.paredes[k].janela.vidro = 'pelicula';
         });
     }
-    if (['exposta', 'atico'].includes(e0.cobertura.tipo))
+    if (e0.cobertura.tipo === 'telhado_direto')
+      tentar('forro', 'Instalar forro sob o telhado', 'Forro de PVC, gesso ou madeira cria uma câmara de ar entre a telha e o ambiente e corta boa parte do calor irradiado.', (e) => {
+        e.cobertura.tipo = 'atico';
+      });
+    if (['exposta', 'atico', 'telhado_direto'].includes(e0.cobertura.tipo))
       tentar('isolamento-cobertura', 'Isolar a cobertura', 'Manta, lã ou EPS sob a telha/laje reduz muito o calor vindo do teto.', (e) => {
         e.cobertura.tipo = 'isolada';
       });
-    if (e0.cobertura.cor !== 'clara' && ['exposta', 'atico'].includes(e0.cobertura.tipo))
+    if (e0.cobertura.cor !== 'clara' && ['exposta', 'atico', 'telhado_direto'].includes(e0.cobertura.tipo))
       tentar('cobertura-clara', 'Pintar/escolher cobertura de cor clara', 'Superfícies claras absorvem menos radiação solar.', (e) => {
         e.cobertura.cor = 'clara';
       });

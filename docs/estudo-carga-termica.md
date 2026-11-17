@@ -106,7 +106,7 @@ Q = U_v · A · (T_ext − T_int)  +  A · SHGF(orientação) · FS_vidro · F_p
 
 **Porta:** a área da porta (largura × 2,1 m) é descontada da parede e entra com U próprio: 2,5 W/m²K em porta externa (mesmo ΔT equivalente da parede) e 2,0 W/m²K em porta para área não climatizada (ΔT − 3 K). Porta para ambiente climatizado não gera carga, mas continua no desenho e na avaliação de posição.
 
-**Cobertura:** mesma forma da parede, com U e ΔT_sol próprios (laje exposta, telhado com forro, isolada, andar acima não climatizado, andar acima climatizado = sem carga).
+**Cobertura:** mesma forma da parede, com U e ΔT_sol próprios: telhado direto (telha à vista, sem laje nem forro), laje descoberta, laje ou forro com telhado por cima (ático), cobertura isolada, outro andar acima sem ar-condicionado e outro andar acima climatizado (sem carga). Para uma casa com telha à vista, o app sugere em primeiro lugar isolar ou instalar forro.
 
 **Pessoas:** `N · (q_sensível + q_latente)` conforme a atividade.
 
@@ -133,7 +133,7 @@ Q = U_v · A · (T_ext − T_int)  +  A · SHGF(orientação) · FS_vidro · F_p
 | Fator de cor | clara 0,6 · média 1,0 · escura 1,3 | |
 | Amortecimento (massa) | alvenaria 0,85 · concreto 0,75 · drywall 1,0 | Massa atrasa e reduz o pico |
 | SHGF vidro comum (W/m²) | N 170 · S 110 · L 300 · O 420 | Ganho solar de projeto simplificado |
-| Cobertura (U / ΔT_sol) | laje exposta 3,0 / 18 · telhado com forro 1,5 / 8 · isolada 0,6 / 8 | |
+| Cobertura (U / ΔT_sol) | **telhado direto, sem laje nem forro 4,5 / 20** · laje descoberta 3,0 / 18 · laje ou forro com telhado por cima 1,5 / 8 · isolada 0,6 / 8 | A telha à vista deixa passar bem mais calor que uma laje de concreto (U da ordem de 4,5 W/m²K) |
 | Pessoa, escritório | 75 W sensível + 65 W latente | Coerente com ASHRAE (≈140 W total) |
 | Pessoa, repouso | 72 + 45 W | ASHRAE "sentado, trabalho muito leve" ≈ 245 + 155 BTU/h |
 | Iluminação | LED 6 · fluorescente 12 · incandescente 20 W/m² | Inclui perdas de reator |
