@@ -73,6 +73,14 @@ test('exposição ao jato: móvel à frente é exposto; ao lado ou atrás da uni
   assert.equal(P.exposicao({ tipo: 'mesa', x: 3, z: 6, rot: 0 }, unidade, jatoSul, 3), 0, 'além do alcance útil');
 });
 
+test('várias portas: todas entram na avaliação do layout', () => {
+  const uma = cenario({}).s;
+  const duas = cenario({ paredes: { N: { porta: { ativa: true, largura: 0.9, pos: 0.5 } } } }).s;
+  const alertaPerto = (s) => s.candidatos.filter((c) => c.parede === 'N' && c.alertas.some((a) => /Muito perto da porta/.test(a))).length;
+  assert.equal(alertaPerto(uma), 0);
+  assert.ok(alertaPerto(duas) > 0, 'candidatos junto à nova porta da parede Norte são penalizados');
+});
+
 test('porta próxima penaliza o layout', () => {
   const { s } = cenario({ porta: { parede: 'S', pos: 0.5, largura: 0.8 } });
   const perto = s.candidatos.find((c) => c.parede === 'S' && Math.abs(c.t - 0.7) < 0.01);

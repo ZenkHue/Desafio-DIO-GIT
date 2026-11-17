@@ -222,13 +222,59 @@ test('sugestão de equipamento: sala grande pede piso-teto/cassete', () => {
   assert.match(pequeno.tipo, /hi-wall/i);
 });
 
-test('porta: largura em texto é convertida e limitada pela parede', () => {
+test('porta (formato antigo "porta"): vira porta da parede indicada e desativa as demais', () => {
   const r = T.calcular({ porta: { parede: 'N', pos: '0.5', largura: '0.8' } });
-  assert.equal(typeof r.entrada.porta.largura, 'number');
-  assert.equal(r.entrada.porta.largura, 0.8);
-  assert.equal(r.entrada.porta.pos, 0.5);
-  assert.equal(T.calcular({ porta: { largura: 99 } }).entrada.porta.largura, 3.6); // parede S tem 4 m
-  assert.equal(T.calcular({ porta: { parede: 'X' } }).entrada.porta.parede, 'S');
+  const pr = r.entrada.paredes;
+  assert.equal(pr.N.porta.ativa, true);
+  assert.equal(typeof pr.N.porta.largura, 'number');
+  assert.equal(pr.N.porta.largura, 0.8);
+  assert.equal(pr.N.porta.pos, 0.5);
+  assert.equal(pr.S.porta.ativa, false, 'a porta padrão da parede Sul é desativada');
+  assert.equal(r.entrada.porta, undefined);
+  assert.equal(T.calcular({ porta: { largura: 99 } }).entrada.paredes.S.porta.largura, 2.5); // limite máximo
+  assert.equal(T.calcular({ porta: { parede: 'X' } }).entrada.paredes.S.porta.ativa, true);
+});
+
+test('porta por parede: cada parede pode ter a sua, com texto convertido em número', () => {
+  const r = T.calcular({ paredes: { N: { porta: { ativa: true, largura: '0.9', pos: '0.3' } }, L: { porta: { ativa: 'true', largura: '1', pos: '0.5' } } } });
+  const pr = r.entrada.paredes;
+  assert.equal(pr.N.porta.ativa, true);
+  assert.equal(pr.L.porta.ativa, true);
+  assert.equal(pr.S.porta.ativa, true, 'a padrão continua ligada');
+  assert.equal(typeof pr.N.porta.largura, 'number');
+  assert.equal(r.geometria.portas.N.largura, 0.9);
+  assert.ok(r.geometria.portas.O.area === 0);
+});
+
+test('porta externa: desconta a área da parede e entra na carga com U de porta', () => {
+  const base = { paredes: { N: { tipo: 'externa', material: 'alvenaria', cor: 'media' } } };
+  const sem = T.calcular(vazio(base));
+  const com = T.calcular(vazio(T.mesclar(base, { paredes: { N: { porta: { ativa: true, largura: 1, pos: 0.5 } } } })));
+  const areaPorta = 1 * 2.1;
+  const paredeSem = sem.itens.find((i) => i.id === 'parede-N').sensivel;
+  const paredeCom = com.itens.find((i) => i.id === 'parede-N').sensivel;
+  const porta = com.itens.find((i) => i.id === 'porta-N');
+  assert.ok(porta, 'item da porta existe');
+  assert.ok(paredeCom < paredeSem, 'parede opaca ficou menor');
+  const dTeq = 8 + 3 * 1 * 0.85; // ΔT + ΔTsol(N) · cor média · amortecimento da alvenaria
+  near(porta.sensivel, 2.5 * areaPorta * dTeq, 0.2);
+  near(paredeSem - paredeCom, 2.4 * areaPorta * dTeq, 0.3);
+});
+
+test('porta em parede de vizinho climatizado não gera carga', () => {
+  const r = T.calcular(vazio({ paredes: { S: { tipo: 'interna_c', porta: { ativa: true, largura: 0.8, pos: 0.5 } } } }));
+  assert.equal(r.itens.find((i) => i.id === 'porta-S'), undefined);
+  assert.ok(r.geometria.portas.S.area > 0, 'ainda existe para o desenho');
+});
+
+test('porta e janela na mesma parede não se sobrepõem', () => {
+  const r = T.calcular({ paredes: { O: { janela: { largura: 1.5, pos: 0.5 }, porta: { ativa: true, largura: 0.8, pos: 0.5 } } } });
+  const { janela, porta } = r.entrada.paredes.O; // parede oeste: 5 m
+  const jIni = janela.pos * 5 - janela.largura / 2;
+  const jFim = janela.pos * 5 + janela.largura / 2;
+  const pIni = porta.pos * 5 - porta.largura / 2;
+  const pFim = porta.pos * 5 + porta.largura / 2;
+  assert.ok(pFim <= jIni + 1e-9 || pIni >= jFim - 1e-9, 'intervalos disjuntos');
 });
 
 test('janela: campos em texto viram número e a janela cabe na parede e no pé-direito', () => {

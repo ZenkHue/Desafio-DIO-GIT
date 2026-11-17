@@ -325,17 +325,17 @@ export function criarVisualizador(container, { aoSelecionar } = {}) {
       }
     }
 
-    // porta
-    if (e.porta && e.porta.largura > 0) {
-      const g = geoParede[e.porta.parede];
-      if (g) {
-        const s = Math.min(Math.max(e.porta.pos, 0), 1) * g.len;
-        const base = g.ponto(s);
-        const porta = caixa(g.alongX ? e.porta.largura : ESPESSURA * 1.3, 2.1, g.alongX ? ESPESSURA * 1.3 : e.porta.largura, 0x8a5a33, { transparent: true, opacity: 0.55, depthWrite: false });
-        porta.position.set(base.x - g.n.x * ESPESSURA * 0.5, 1.05, base.z - g.n.z * ESPESSURA * 0.5);
-        arestas(porta, 0x3b2616, 1);
-        modelo.add(porta);
-      }
+    // portas (uma por parede, no máximo)
+    for (const k of ['N', 'S', 'L', 'O']) {
+      const dp = res.geometria.portas[k];
+      if (!dp || dp.area <= 0) continue;
+      const g = geoParede[k];
+      const s = Math.min(Math.max(e.paredes[k].porta.pos, 0), 1) * g.len;
+      const base = g.ponto(s);
+      const porta = caixa(g.alongX ? dp.largura : ESPESSURA * 1.3, dp.altura, g.alongX ? ESPESSURA * 1.3 : dp.largura, 0x8a5a33, { transparent: true, opacity: 0.55, depthWrite: false });
+      porta.position.set(base.x - g.n.x * ESPESSURA * 0.5, dp.altura / 2, base.z - g.n.z * ESPESSURA * 0.5);
+      arestas(porta, 0x3b2616, 1);
+      modelo.add(porta);
     }
 
     // cobertura

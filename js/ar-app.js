@@ -13,6 +13,8 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const STORAGE_KEY = 'ar-termica-v1';
 const ORDEM_PAREDES = ['N', 'L', 'S', 'O'];
 const NOME_PAREDE = T.ORIENTACOES;
+// de qual canto a posição (%) começa a contar em cada parede
+const CANTO = { N: ['oeste', 'leste'], S: ['oeste', 'leste'], L: ['norte', 'sul'], O: ['norte', 'sul'] };
 
 /* ---------- estado ---------- */
 let equip = [{ nome: 'Notebook', qtd: 1, watts: 65 }];
@@ -35,9 +37,6 @@ function montarFormulario() {
   $('infiltracao').value = 'normal';
   $('coberturaTipo').innerHTML = opcoes(T.COBERTURAS);
   $('coberturaTipo').value = T.PADRAO.cobertura.tipo;
-  $('portaParede').innerHTML = ORDEM_PAREDES.map((k) => `<option value="${k}">${NOME_PAREDE[k]}</option>`).join('');
-  $('portaParede').value = T.PADRAO.porta.parede;
-  $('portaPos').value = T.PADRAO.porta.pos * 100;
   $('equipPreset').innerHTML =
     T.EQUIPAMENTOS_PADRAO.map((q, i) => `<option value="${i}">${esc(q.nome)} (${q.watts} W)</option>`).join('') +
     '<option value="custom">Outro equipamento…</option>';
@@ -67,12 +66,21 @@ function montarFormulario() {
             <label class="campo"><span>Altura (m)</span><input id="j-${k}-altura" type="number" inputmode="decimal" min="0" step="0.1" value="${j.altura}"></label>
             <label class="campo"><span>Peitoril (m)</span><input id="j-${k}-peitoril" type="number" inputmode="decimal" min="0" step="0.1" value="${j.peitoril}"></label>
           </div>
-          <label class="campo"><span>Posição ao longo da parede (%)</span><input id="j-${k}-pos" type="range" min="10" max="90" step="5" value="${j.pos * 100}"></label>
+          <label class="campo"><span>Posição ao longo da parede: <b id="j-${k}-posm"></b></span><input id="j-${k}-pos" type="range" min="10" max="90" step="5" value="${j.pos * 100}"><small class="dica">0% = canto ${CANTO[k][0]} · 100% = canto ${CANTO[k][1]}</small></label>
           <div class="grade">
             <label class="campo"><span>Vidro</span><select id="j-${k}-vidro">${opcoes(T.VIDROS)}</select></label>
             <label class="campo"><span>Proteção solar</span><select id="j-${k}-protecao">${opcoes(T.PROTECOES)}</select></label>
           </div>
           <small class="dica">Largura 0 = sem janela. A janela é limitada pelo tamanho da parede.</small>
+        </div>
+        <div class="porta-bloco">
+          <label class="check"><input id="d-${k}-ativa" type="checkbox" ${p.porta.ativa ? 'checked' : ''}><span>Esta parede tem porta</span></label>
+          <div id="d-${k}-campos" ${p.porta.ativa ? '' : 'hidden'}>
+            <div class="grade">
+              <label class="campo"><span>Largura da porta (m)</span><input id="d-${k}-largura" type="number" inputmode="decimal" min="0.5" max="2.5" step="0.1" value="${p.porta.largura}"></label>
+              <label class="campo"><span>Posição: <b id="d-${k}-posm"></b></span><input id="d-${k}-pos" type="range" min="10" max="90" step="5" value="${p.porta.pos * 100}"><small class="dica">0% = canto ${CANTO[k][0]} · 100% = canto ${CANTO[k][1]}</small></label>
+            </div>
+          </div>
         </div>
       </div>
     </details>`;
@@ -135,6 +143,7 @@ function lerEntrada() {
         vidro: val(`j-${k}-vidro`),
         protecao: val(`j-${k}-protecao`),
       },
+      porta: { ativa: $(`d-${k}-ativa`).checked, largura: val(`d-${k}-largura`), pos: Number(val(`d-${k}-pos`)) / 100 },
     };
   }
   return {
@@ -149,7 +158,6 @@ function lerEntrada() {
     },
     paredes,
     cobertura: { tipo: val('coberturaTipo'), cor: val('coberturaCor') },
-    porta: { parede: val('portaParede'), pos: Number(val('portaPos')) / 100, largura: val('portaLargura') },
     pessoas: { quantidade: val('pessoas'), atividade: val('atividade') },
     equipamentos: equip,
     iluminacao: val('iluminacao'),
@@ -316,8 +324,14 @@ function renderResumoParedes(res) {
     const j = res.geometria.janelas[k];
     const tipo = p.tipo === 'externa' ? 'Externa' : p.tipo === 'interna_nc' ? 'Interna' : 'Vizinho climatizado';
     const jtxt = j.area > 0 ? ` · janela ${n1.format(j.largura)}×${n1.format(j.altura)} m` : '';
-    $(`rp-${k}`).textContent = tipo + jtxt;
+    const dp = res.geometria.portas[k];
+    const ptxt = dp.area > 0 ? ` · porta ${n1.format(dp.largura)} m` : '';
+    $(`rp-${k}`).textContent = tipo + jtxt + ptxt;
     $(`j-${k}`).hidden = p.tipo !== 'externa';
+    $(`d-${k}-campos`).hidden = !p.porta.ativa;
+    const len = res.geometria.comps[k];
+    $(`j-${k}-posm`).textContent = `${n1.format(p.janela.pos * len)} m do canto ${CANTO[k][0]}`;
+    $(`d-${k}-posm`).textContent = `${n1.format(p.porta.pos * len)} m do canto ${CANTO[k][0]}`;
   }
 }
 
