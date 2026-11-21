@@ -203,13 +203,13 @@
     { id: 'geladeira', nome: 'Geladeira', sens: 90, sempre: true },
     { id: 'frigobar', nome: 'Frigobar', sens: 50, sempre: true },
     { id: 'freezer', nome: 'Freezer', sens: 110, sempre: true },
-    { id: 'aquario', nome: 'Aquário', sens: 60, sempre: true },
+    { id: 'aquario', nome: 'Aquário', sens: 60, sempre: true, conta: false },
     { id: 'micro_ondas', nome: 'Micro-ondas', sens: 150, cozinha: true },
     { id: 'air_fryer', nome: 'Air fryer', sens: 400, cozinha: true },
     { id: 'forno', nome: 'Forno elétrico', sens: 700, cozinha: true },
     { id: 'fogao', nome: 'Fogão a gás (cozinhando)', sens: 1500, lat: 400, cozinha: true },
-    { id: 'cafeteira', nome: 'Cafeteira', sens: 80, cozinha: true },
-    { id: 'lampada', nome: 'Lâmpada incandescente/halógena (cada)', sens: 60 },
+    { id: 'cafeteira', nome: 'Cafeteira', sens: 80, cozinha: true, conta: false },
+    { id: 'lampada', nome: 'Lâmpada incandescente/halógena (cada)', sens: 60, conta: false },
     { id: 'servidor', nome: 'Servidor / rack de rede', sens: 400, sempre: true, eletronico: true },
   ];
   const APARELHOS_POR_ID = Object.fromEntries(APARELHOS.map((a) => [a.id, a]));
@@ -240,6 +240,26 @@
       return [k, v.map((x) => x / s)];
     })
   );
+
+  /**
+   * Método de mercado brasileiro (o que lojas e fabricantes ensinam), com os acréscimos mais citados.
+   * Valores e fontes: docs/estudo-carga-termica.md, seção "Método de mercado".
+   */
+  const MERCADO = {
+    porM2SemSol: 600, // BTU/h por m² — sem sol forte ou só sol da manhã
+    porM2ComSol: 800, // BTU/h por m² — sol da tarde ou o dia todo
+    pessoaExtra: 600, // por pessoa a partir da 2ª
+    eletronico: 600, // por eletrônico/eletrodoméstico que esquenta (TV, computador, videogame, geladeira, fogão…)
+    peDireitoRef: 2.8, // acima disso a base cresce na proporção do volume
+    cobertura: { telha: 0.2, laje_exposta: 0.2, forro: 0.1 }, // acréscimo sobre a base: teto que pega sol
+  };
+
+  /** Como escolher a recomendação final. */
+  const CRITERIOS = {
+    maior: { rotulo: 'O maior entre o método de mercado e o cálculo hora a hora (recomendado)' },
+    fisico: { rotulo: 'Só o cálculo hora a hora (mínimo técnico, para engenheiros)' },
+    mercado: { rotulo: 'Só o método de mercado (como nas lojas)' },
+  };
 
   /** Quanto da carga de partida o aparelho deve vencer na 1ª hora. */
   const PARTIDAS = {
@@ -293,7 +313,7 @@
     extras: [],
     iluminacao: 'led',
     uso: { inicio: 21, fim: 7, temperatura: 23 },
-    avancado: { margem: 0.1, infiltracao: 'baixa', massa: 'auto', partida: 'rapida' },
+    avancado: { margem: 0.1, infiltracao: 'baixa', massa: 'auto', partida: 'rapida', criterio: 'maior' },
     energia: { tarifa: 0.95, tecnologia: 'inverter' },
     moveis: [{ tipo: 'cama', x: 1.5, z: 2.9, rot: 0 }],
   };
@@ -566,6 +586,7 @@
     if (!INFILTRACAO[e.avancado.infiltracao]) e.avancado.infiltracao = 'normal';
     if (!['auto', 'leve', 'media', 'pesada'].includes(e.avancado.massa)) e.avancado.massa = 'auto';
     if (!PARTIDAS[e.avancado.partida]) e.avancado.partida = 'rapida';
+    if (!CRITERIOS[e.avancado.criterio]) e.avancado.criterio = 'maior';
     e.energia.tarifa = limitar(num(e.energia.tarifa, 0.95), 0, 10);
     if (!['inverter', 'convencional'].includes(e.energia.tecnologia)) e.energia.tecnologia = 'inverter';
     e.moveis = (Array.isArray(e.moveis) ? e.moveis : [])
@@ -862,7 +883,8 @@
       porSuperficie[k] = { area: arred(area, 2), watts: serie.map((x) => arred(x)), wm2: serie.map((x) => (area > 0 ? arred(x / area, 1) : 0)) };
     }
 
-    const dim = dimensionar(e, pico, horaPico, clima);
+    const mercado = metodoMercado(e, geo);
+    const dim = dimensionar(e, pico, horaPico, clima, mercado);
     const res = {
       entrada: e,
       clima: { ...clima, te: clima.te.map((t) => arred(t, 1)), w: arred(clima.w, 1), wi: arred(wi, 1) },
@@ -877,7 +899,8 @@
       pico: { hora: horaPico, total: pico.total, sens: pico.sens, lat: pico.lat, componentes: componentesPico, shr: pico.total > 0 ? arred(pico.sens / pico.total, 2) : 1 },
       porSuperficie,
       dimensionamento: dim,
-      regraLojas: regraLojas(e, geo),
+      mercado,
+      regraLojas: mercado, // nome antigo, mantido por compatibilidade
       energia: energia(e, horas, uso),
     };
     res.explicacoes = explicar(res);
@@ -885,14 +908,18 @@
   }
 
   /* ===================================================================== dimensionamento */
-  function dimensionar(e, pico, horaPico, clima) {
+  function dimensionar(e, pico, horaPico, clima, mercado) {
     // O aparelho é ensaiado com 27 °C dentro e 35 °C fora; com o ambiente mais frio ou mais calor lá fora, rende menos.
     const fi = limitar(1 - 0.025 * (27 - e.uso.temperatura), 0.8, 1.05);
     const fe = limitar(1 - 0.012 * Math.max(0, clima.te[horaPico] - 35), 0.85, 1);
     const cargaW = pico.total;
     const comMargem = cargaW * (1 + e.avancado.margem);
     const necessarioW = comMargem / (fi * fe);
-    const necessarioBTU = necessarioW * W_PARA_BTU;
+    const fisicoBTU = necessarioW * W_PARA_BTU;
+    const mercadoBTU = mercado.btu;
+    const criterio = e.avancado.criterio;
+    const necessarioBTU = criterio === 'fisico' ? fisicoBTU : criterio === 'mercado' ? mercadoBTU : Math.max(fisicoBTU, mercadoBTU);
+    const governa = criterio === 'maior' ? (fisicoBTU > mercadoBTU ? 'fisico' : 'mercado') : criterio;
 
     const max = CAPACIDADES[CAPACIDADES.length - 1];
     let quantidade = 1;
@@ -922,6 +949,10 @@
       cargaPicoW: arred(cargaW),
       cargaPicoBTU: arred(cargaW * W_PARA_BTU),
       necessarioBTU: arred(necessarioBTU),
+      necessarioFisicoBTU: arred(fisicoBTU),
+      necessarioMercadoBTU: arred(mercadoBTU),
+      criterio,
+      governa,
       capacidade,
       quantidade,
       capacidadeTotal,
@@ -933,17 +964,29 @@
     };
   }
 
-  /** "Regra das lojas": 600 BTU/m² (800 se pega sol da tarde) + 600 por pessoa a partir da 2ª + 600 por eletrônico. */
-  function regraLojas(e, geo) {
-    const solTarde = PAREDES.some((k) => e.paredes[k].tipo === 'externa' && ['tarde', 'diatodo'].includes(exposicaoParede(e, k)));
-    const base = solTarde ? 800 : 600;
-    let eletronicos = 0;
-    for (const [id, q] of Object.entries(e.aparelhos)) if (APARELHOS_POR_ID[id].eletronico) eletronicos += q;
-    eletronicos += e.extras.length;
+  /**
+   * Método de mercado (prática brasileira): base por m² conforme o sol, + pessoas extras e eletrônicos,
+   * + acréscimo para teto que pega sol e para pé-direito alto. Devolve cada parcela para a tela explicar a conta.
+   */
+  function metodoMercado(e, geo) {
+    const comSol = PAREDES.some((k) => e.paredes[k].tipo === 'externa' && ['tarde', 'diatodo'].includes(exposicaoParede(e, k)));
+    const porM2 = comSol ? MERCADO.porM2ComSol : MERCADO.porM2SemSol;
+    const itens = [];
+    const fVolume = Math.max(1, e.ambiente.peDireito / MERCADO.peDireitoRef);
+    const base = geo.area * porM2 * fVolume;
+    itens.push({ id: 'base', rotulo: `${String(arred(geo.area, 1)).replace('.', ',')} m² × ${porM2} BTU${comSol ? ' (pega sol da tarde)' : ''}${fVolume > 1 ? ` × ${String(arred(fVolume, 2)).replace('.', ',')} (pé-direito alto)` : ''}`, btu: base });
     const pessoasExtra = Math.max(0, e.pessoas.quantidade - 1);
-    const btu = geo.area * base + 600 * pessoasExtra + 600 * eletronicos;
+    if (pessoasExtra) itens.push({ id: 'pessoas', rotulo: `${pessoasExtra} pessoa${pessoasExtra > 1 ? 's' : ''} além da primeira × ${MERCADO.pessoaExtra}`, btu: pessoasExtra * MERCADO.pessoaExtra });
+    let eletronicos = 0;
+    for (const [id, q] of Object.entries(e.aparelhos)) if (APARELHOS_POR_ID[id].conta !== false) eletronicos += q;
+    eletronicos += e.extras.length;
+    if (eletronicos) itens.push({ id: 'eletronicos', rotulo: `${eletronicos} aparelho${eletronicos > 1 ? 's' : ''} que esquenta${eletronicos > 1 ? 'm' : ''} × ${MERCADO.eletronico}`, btu: eletronicos * MERCADO.eletronico });
+    const fTeto = MERCADO.cobertura[e.cobertura.tipo] || 0;
+    if (fTeto) itens.push({ id: 'teto', rotulo: `Teto que pega sol (+${Math.round(fTeto * 100)}% da base)`, btu: base * fTeto });
+    const btu = itens.reduce((s, x) => s + x.btu, 0);
+    for (const x of itens) x.btu = arred(x.btu);
     const capacidade = CAPACIDADES.find((c) => c >= btu * 0.95) || CAPACIDADES[CAPACIDADES.length - 1];
-    return { btu: arred(btu), capacidade, base, solTarde, pessoasExtra, eletronicos };
+    return { btu: arred(btu), capacidade, base: porM2, solTarde: comSol, pessoasExtra, eletronicos, itens };
   }
 
   /** Consumo estimado num mês quente: soma a carga das horas de uso / COP (o dia de projeto é o pior; usamos 65% dele). */
@@ -972,7 +1015,15 @@
     if (d.fatores.rendimentoCalor < 1) out.push(`Com mais de 35 °C lá fora o aparelho também perde rendimento (${Math.round((1 - d.fatores.rendimentoCalor) * 100)}%). Já descontamos.`);
     if (r.partida && r.pico.hora === r.partida.hora)
       out.push(`O ar fica desligado parte do dia: quando liga às ${fmtHora(r.partida.hora)}, o ambiente está por volta de ${String(r.partida.tempLivre).replace('.', ',')} °C e tem calor guardado nas paredes e móveis. Tirar isso soma ${Math.round(r.partida.watts * W_PARA_BTU).toLocaleString('pt-BR')} BTU/h na primeira hora.`);
-    out.push(`Margem de segurança: ${Math.round(d.fatores.margem * 100)}%.`);
+    out.push(`Margem de segurança no cálculo hora a hora: ${Math.round(d.fatores.margem * 100)}%.`);
+    const fis = Math.round(d.necessarioFisicoBTU).toLocaleString('pt-BR');
+    const mer = Math.round(d.necessarioMercadoBTU).toLocaleString('pt-BR');
+    if (d.criterio === 'maior' && d.governa === 'mercado')
+      out.unshift(`Recomendamos pelo método de mercado (${mer} BTU/h), que é maior que o cálculo hora a hora (${fis} BTU/h). Ele embute a folga que a prática ensina: ondas de calor, filtro sujo, instalação longa e quem gosta de ar bem gelado.`);
+    else if (d.criterio === 'maior')
+      out.unshift(`O cálculo hora a hora (${fis} BTU/h) passou o método de mercado (${mer} BTU/h): ele enxerga o que a conta por m² não vê, como ${top.length ? top.slice(0, 2).map((c) => minuscula(c.rotulo)).join(' e ') : 'o sol e o horário de uso'}.`);
+    else if (d.criterio === 'fisico') out.unshift(`Você escolheu só o cálculo hora a hora (mínimo técnico): ${fis} BTU/h. O método de mercado daria ${mer} BTU/h.`);
+    else out.unshift(`Você escolheu só o método de mercado: ${mer} BTU/h. O cálculo hora a hora daria ${fis} BTU/h.`);
     return out;
   }
 
@@ -985,12 +1036,16 @@
       const e = clonar(e0);
       mutar(e);
       const r = calcular(e);
-      const delta = base.dimensionamento.necessarioBTU - r.dimensionamento.necessarioBTU;
-      if (delta >= 300 && delta / base.dimensionamento.necessarioBTU >= 0.025) {
+      // mede a redução do calor pelo cálculo hora a hora: é o que muda no conforto e na conta de luz,
+      // mesmo quando o tamanho recomendado é definido pelo método de mercado
+      const antes = base.dimensionamento.necessarioFisicoBTU;
+      const delta = antes - r.dimensionamento.necessarioFisicoBTU;
+      if (delta >= 300 && delta / antes >= 0.025) {
         lista.push({
           id, titulo, descricao,
           reducaoBTU: arred(delta),
-          reducaoPct: arred((delta / base.dimensionamento.necessarioBTU) * 100),
+          reducaoPct: arred((delta / antes) * 100),
+          economiaKWh: arred(base.energia.kWhMes - r.energia.kWhMes),
           novaCapacidade: r.dimensionamento.capacidadeTotal,
           reduzCapacidade: r.dimensionamento.capacidadeTotal < base.dimensionamento.capacidadeTotal,
         });
@@ -1067,7 +1122,7 @@
   return {
     W_PARA_BTU, PAREDES, CAPACIDADES, ALCANCE, CIDADES, FRACAO_AMPLITUDE, CEU, MATERIAIS, COBERTURAS, ABSORTANCIA,
     PISOS, PARTIDAS, VIDROS, PROTECOES, ATIVIDADES, APARELHOS, APARELHOS_POR_ID, ILUMINACAO, INFILTRACAO, RTS, DIRECOES, EXPOSICOES, TIPOS, PADRAO,
-    calcular, normalizar, aplicarTipo, climaDaCidade, resolverCidade, distanciaKm, oportunidades, regraLojas, horasDeUso, posicaoSol, radiacaoVertical, radiacaoHorizontal,
+    calcular, normalizar, aplicarTipo, climaDaCidade, resolverCidade, distanciaKm, oportunidades, metodoMercado, MERCADO, CRITERIOS, horasDeUso, posicaoSol, radiacaoVertical, radiacaoHorizontal,
     fatorAngular, exposicaoParede, azimuteParede, conducaoComAtraso, aplicarRTS, umidadeAbsoluta, geometria, comprimentoParede,
     codificar, decodificar, mesclar, arred,
   };

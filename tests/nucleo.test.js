@@ -163,12 +163,27 @@ test('capacidade comercial: menor aparelho que atende com 5% de tolerância; vá
   assert.ok(grande.quantidade >= 2);
 });
 
-test('regra das lojas: 600 BTU/m² (800 com sol da tarde) + 600 por pessoa extra e por eletrônico', () => {
-  const r = N.calcular({ ambiente: { largura: 3, comprimento: 4 }, pessoas: { quantidade: 3 }, aparelhos: { tv: 1, notebook: 1, geladeira: 1 } });
-  assert.equal(r.regraLojas.base, 800);
-  assert.equal(r.regraLojas.btu, 12 * 800 + 600 * 2 + 600 * 2, 'geladeira não conta como eletrônico');
+test('método de mercado: 600 BTU/m² (800 com sol da tarde) + 600 por pessoa extra e por aparelho que esquenta', () => {
+  const r = N.calcular({ ambiente: { largura: 3, comprimento: 4, peDireito: 2.6 }, pessoas: { quantidade: 3 }, aparelhos: { tv: 1, notebook: 1, geladeira: 1, lampada: 2 } });
+  assert.equal(r.mercado.base, 800);
+  assert.equal(r.mercado.btu, 12 * 800 + 600 * 2 + 600 * 3, 'lâmpada não entra na conta de mercado');
+  assert.equal(r.mercado.itens.reduce((s, x) => s + x.btu, 0), r.mercado.btu, 'as parcelas somam o total');
   const semSol = N.calcular({ paredes: { A: { sol: 'manha' } } });
-  assert.equal(semSol.regraLojas.base, 600);
+  assert.equal(semSol.mercado.base, 600);
+});
+
+test('recomendação = o maior entre o método de mercado e o cálculo hora a hora (ou o critério escolhido)', () => {
+  const e = { ambiente: { largura: 4.4, comprimento: 5, peDireito: 2.7 }, paredes: { A: { sol: 'nao' } }, uso: { inicio: 8, fim: 18, temperatura: 24 } };
+  const d = N.calcular(e).dimensionamento;
+  assert.equal(d.necessarioBTU, Math.max(d.necessarioFisicoBTU, d.necessarioMercadoBTU));
+  assert.equal(d.governa, 'mercado');
+  assert.ok(d.capacidadeTotal >= 18000, '22 m² nunca fica em 12.000 só pelo cálculo físico');
+  const fis = N.calcular(N.mesclar(e, { avancado: { criterio: 'fisico' } })).dimensionamento;
+  assert.equal(fis.necessarioBTU, fis.necessarioFisicoBTU);
+  const mer = N.calcular(N.mesclar(e, { avancado: { criterio: 'mercado' } })).dimensionamento;
+  assert.equal(mer.necessarioBTU, mer.necessarioMercadoBTU);
+  const telha = N.calcular({ cobertura: { tipo: 'telha' }, piso: 'terreo', uso: { inicio: 12, fim: 0 } }).dimensionamento;
+  assert.equal(telha.governa, 'fisico', 'telha à vista: o físico passa o mercado');
 });
 
 /* ------------------------------------------------------------------ cenários de referência (regressão) */
