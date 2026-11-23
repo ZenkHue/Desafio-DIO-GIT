@@ -1,8 +1,54 @@
-# Estudo: carga térmica hora a hora e onde instalar o ar-condicionado (v2)
+# Estudo: carga térmica hora a hora e onde instalar o ar-condicionado (v3)
 
 Documento técnico da **Calculadora de BTUs** (`ar-condicionado.html`). Explica o método, as fórmulas, de onde vêm os números, como o app se compara com as ferramentas do mercado e o que ele **não** faz. O código está em `js/ar/nucleo.js` (cálculo) e `js/ar/posicao.js` (onde instalar).
 
 > **Aviso.** O app faz **pré-dimensionamento**. Não substitui projeto de profissional habilitado conforme a ABNT NBR 16401. Vários coeficientes são aproximados; a seção 9 diz quais e com que grau de confiança.
+
+---
+
+## 0. O que mudou na v3: nunca abaixo da conta das lojas
+
+**O problema.** Uma sala de 22 m² dava 12.000 BTUs, enquanto 11 de 14 tabelas de lojas e fabricantes indicam 18.000. Varremos 3.840 combinações de 22 m²: em 44% delas o cálculo físico sozinho ficava em 12.000 ou menos. O cálculo hora a hora estima bem o calor de um **dia típico de projeto**, mas não cobre o que as tabelas do mercado embutem por experiência: dias acima do de projeto, porta aberta, gente a mais, aparelho perdendo rendimento com o tempo, filtro sujo.
+
+**A regra nova.** O app calcula duas coisas e recomenda **a maior**:
+
+1. **Método de mercado** (a conta que lojas e fabricantes ensinam, levantada em 22 fontes):
+   - 600 BTU/m² sem sol, ou 800 BTU/m² com sol;
+   - mais 600 por pessoa além da primeira;
+   - mais 600 por aparelho que esquenta (TV, computador, geladeira, lâmpada incandescente...);
+   - mais 20% da base para telha, forro ou laje pegando sol;
+   - mais 4.000 para cozinha;
+   - a base aumenta na proporção do pé-direito acima de 2,8 m.
+2. **Cálculo hora a hora** (seções 1 a 4): sol, paredes, teto, vidro, cidade e horário de uso.
+
+Errar para menos é o que deixa o ar sem dar conta. Em "Avançado", quem quiser pode escolher só um dos dois. Os testes travam que **nenhuma sala de 22 m² recebe menos de 18.000**.
+
+**Modo rápido.** Sete a nove perguntas em árvore de decisão (cômodo → tamanho → casa ou apartamento → teto → sol → janela → cidade → horário → pessoas e aparelhos). "Não sei" usa a opção mais segura. Veja o [mapa mental e a árvore](mapa-mental-e-arvore.md).
+
+**Partida.** O calor acumulado ao ligar o ar passou a usar a média das 6 horas anteriores, limitada a 6 °C acima do ambiente. Antes, o sol da manhã às vezes "vencia" o da tarde por um artefato.
+
+### Cenários da v3 (modo rápido, São Paulo)
+
+| Cenário | Método de mercado (BTU/h) | Hora a hora (BTU/h) | **Recomendado** |
+|---|---|---|---|
+| Quarto 12 m², casa térrea (laje+telhado), sol da tarde, ar à noite, São Paulo | 10.800 | 11.031 | **12.000** |
+| Quarto 12 m², apartamento, sem sol, à noite | 8.400 | 9.283 | **9.000** |
+| Sala 22 m², casa térrea, sol da tarde, tarde e noite | 19.400 | 15.818 | **22.000** |
+| Sala 22 m², casa só com telhado (sem laje), sol da tarde | 22.921 | 30.436 | **30.000** |
+| Sala 20 m², último andar com laje pegando sol | 21.000 | 20.752 | **22.000** |
+| Escritório 9 m², apartamento, sem sol, de dia | 6.000 | 5.901 | **7.500** |
+| Cozinha 12 m², casa com telha à vista | 17.920 | 21.757 | **22.000** |
+
+Fontes do método de mercado:
+- fabricantes:
+  - [Midea](https://www.midea.com.br/calculadora-de-btu)
+  - [LG](https://www.lg.com/br/sobre-a-lg/press-media/como-calcular-btus-por-m-e-escolher-o-ar-condicionado-ideal/)
+  - [Samsung](https://www.samsung.com/br/air-conditioners/btu-calculator/)
+  - [Electrolux](https://loja.electrolux.com.br/calculadora-btu)
+  - [Daikin](https://loja.daikin.com.br/pagina/calculadora-de-btus)
+- varejo e guias: Buscapé, Zoom, WebArCondicionado (seção 10).
+
+As seções abaixo descrevem o cálculo hora a hora (v2), que continua sendo uma das duas contas.
 
 ---
 
@@ -115,7 +161,7 @@ Na hora antes de ligar, o ambiente "flutua" acima do desejado em `ΔT = ganhos /
 4. **Tamanho comercial:** 7.500 · 9.000 · 12.000 · 18.000 · 22.000 · 24.000 · 30.000 · 36.000 · 48.000 · 60.000. Escolhe o menor que atende com tolerância de 5%. Acima de 60.000, divide em vários aparelhos.
 5. **No limite:** se o necessário fica até 15% acima do tamanho menor, o app avisa e diz qual melhoria traz o aparelho menor de volta.
 
-## 5. Cenários de referência (calculados pelo próprio motor)
+## 5. Cenários de referência do cálculo hora a hora (v2, sem a regra do maior)
 
 | Cenário | Pior hora | Calor no pico (BTU/h) | Necessário (BTU/h) | **Aparelho** | Regra das lojas |
 |---|---|---|---|---|---|

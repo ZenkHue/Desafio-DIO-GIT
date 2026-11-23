@@ -19,7 +19,7 @@
   <header class="topo">
     <div class="wrap">
       <h1>Calculadora de BTUs <span class="selo">Ar-condicionado</span></h1>
-      <p>Quantos BTUs o seu ambiente precisa, calculado hora a hora com o sol de cada parede, e onde instalar o aparelho.</p>
+      <p>Responda poucas perguntas e descubra quantos BTUs o seu ar-condicionado precisa — e onde instalar.</p>
       <nav class="nav" aria-label="Ferramentas">
         <a href="index.html">Salário líquido</a>
         <a href="ar-condicionado.html" aria-current="page">Ar-condicionado</a>
@@ -30,6 +30,26 @@
   <main class="wrap layout-ar">
     <!-- =============================== PERGUNTAS =============================== -->
     <form id="form" class="coluna-form" autocomplete="off" novalidate>
+      <div class="segmentado modo" role="radiogroup" aria-label="Como você quer responder">
+        <label><input type="radio" name="modoApp" value="rapido"><span>⚡ Rápido</span></label>
+        <label><input type="radio" name="modoApp" value="detalhado"><span>🔧 Detalhado</span></label>
+      </div>
+
+      <section class="card rapido" id="rapido" aria-labelledby="rapidoTitulo">
+        <div class="rapido-topo">
+          <span class="progresso" id="rapidoProgresso"></span>
+          <a href="#resumo" class="ver-agora" id="verAgora">Ver resultado agora ↓</a>
+        </div>
+        <div class="barra-progresso" aria-hidden="true"><i id="rapidoBarra"></i></div>
+        <div class="trilha" id="rapidoTrilha" aria-label="Suas respostas (toque para mudar)"></div>
+        <div id="rapidoPergunta"></div>
+        <div class="rapido-nav">
+          <button type="button" class="btn" id="rapidoVoltar">← Voltar</button>
+          <button type="button" class="btn primario" id="rapidoContinuar">Continuar →</button>
+        </div>
+      </section>
+
+      <div id="detalhado">
       <section class="card">
         <h2 class="passo"><span>1</span> Que ambiente é este?</h2>
         <div class="chips grandes" id="tipos" role="radiogroup" aria-label="Tipo de ambiente"></div>
@@ -39,9 +59,9 @@
       <section class="card">
         <h2 class="passo"><span>2</span> Tamanho e onde fica</h2>
         <div class="grade tres">
-          <label class="campo"><span>Largura (m)</span><input data-bind="ambiente.largura" data-tipo="num" type="number" inputmode="decimal" min="1" max="40" step="0.1"></label>
-          <label class="campo"><span>Comprimento (m)</span><input data-bind="ambiente.comprimento" data-tipo="num" type="number" inputmode="decimal" min="1" max="40" step="0.1"></label>
-          <label class="campo"><span>Pé-direito (m)</span><input data-bind="ambiente.peDireito" data-tipo="num" type="number" inputmode="decimal" min="2" max="6" step="0.05"></label>
+          <label class="campo"><span>Largura (m)</span><input data-bind="ambiente.largura" data-tipo="num" type="text" inputmode="decimal" min="1" max="40" step="0.1"></label>
+          <label class="campo"><span>Comprimento (m)</span><input data-bind="ambiente.comprimento" data-tipo="num" type="text" inputmode="decimal" min="1" max="40" step="0.1"></label>
+          <label class="campo"><span>Altura do teto (m)</span><input data-bind="ambiente.peDireito" data-tipo="num" type="text" inputmode="decimal" min="2" max="6" step="0.05"></label>
         </div>
         <p class="area-info" id="areaInfo"></p>
         <div class="campo busca-cidade">
@@ -115,17 +135,18 @@
         </div>
         <p class="dica">Clima de projeto da cidade (valores aproximados). Deixe em branco para usar o padrão.</p>
         <div class="grade tres">
-          <label class="campo"><span>Máxima do dia (°C)</span><input data-bind="clima.tmax" data-tipo="numnull" type="number" inputmode="decimal" step="0.5" id="tmax"></label>
-          <label class="campo"><span>Variação no dia (°C)</span><input data-bind="clima.amp" data-tipo="numnull" type="number" inputmode="decimal" step="0.5" id="amp"></label>
-          <label class="campo"><span>Umidade à tarde (%)</span><input data-bind="clima.ur" data-tipo="numnull" type="number" inputmode="decimal" step="1" id="ur"></label>
+          <label class="campo"><span>Máxima do dia (°C)</span><input data-bind="clima.tmax" data-tipo="numnull" type="text" inputmode="decimal" step="0.5" id="tmax"></label>
+          <label class="campo"><span>Variação no dia (°C)</span><input data-bind="clima.amp" data-tipo="numnull" type="text" inputmode="decimal" step="0.5" id="amp"></label>
+          <label class="campo"><span>Umidade à tarde (%)</span><input data-bind="clima.ur" data-tipo="numnull" type="text" inputmode="decimal" step="1" id="ur"></label>
         </div>
         <div class="grade">
-          <label class="campo"><span>Tarifa de energia (R$/kWh)</span><input data-bind="energia.tarifa" data-tipo="num" type="number" inputmode="decimal" min="0" step="0.01"></label>
+          <label class="campo"><span>Tarifa de energia (R$/kWh)</span><input data-bind="energia.tarifa" data-tipo="num" type="text" inputmode="decimal" min="0" step="0.01"></label>
           <label class="campo"><span>Tecnologia</span><select data-bind="energia.tecnologia"><option value="inverter">Inverter</option><option value="convencional">Convencional (liga/desliga)</option></select></label>
         </div>
       </details>
 
-      <div class="acoes">
+      </div>
+      <div class="acoes acoes-gerais">
         <button type="button" class="btn" id="compartilhar">🔗 Copiar link deste cenário</button>
         <button type="button" class="btn" id="recomecar">Recomeçar</button>
       </div>
@@ -133,19 +154,22 @@
     </form>
 
     <!-- =============================== RESULTADO =============================== -->
-    <div class="coluna-res" aria-live="polite">
+    <div class="coluna-res">
+      <p class="so-leitor" id="anuncio" role="status" aria-live="polite"></p>
       <section class="card destaque" id="resumo">
         <span class="rotulo">Recomendado para este ambiente</span>
         <strong class="grande" id="btus">— BTUs</strong>
         <span class="tipo-equip" id="tipoEquip"></span>
         <ol class="escala" id="escala" aria-label="Tamanhos de ar-condicionado vendidos no Brasil"></ol>
         <p class="limite" id="limite" hidden></p>
-        <div class="mini tres">
-          <div><span>Pior horário</span><b id="horaPico">—</b></div>
-          <div><span>Calor nesse horário</span><b id="cargaPico">—</b></div>
-          <div><span>Com margens e ajustes</span><b id="necessario">—</b></div>
-        </div>
-        <div class="comparacao" id="comparacao"></div>
+        <span class="selo-lojas" id="seloLojas"></span>
+        <ul class="tres-numeros" id="tresNumeros"></ul>
+        <details class="conta" id="contaMercado">
+          <summary>Ver a conta do método de mercado</summary>
+          <ul id="itensMercado"></ul>
+        </details>
+        <div class="ajustes" id="ajustes" hidden></div>
+        <div class="suposicoes" id="suposicoes" hidden></div>
       </section>
 
       <section class="card">
@@ -232,6 +256,7 @@
 
   <script src="js/ar/municipios.js"></script>
   <script src="js/ar/nucleo.js"></script>
+  <script src="js/ar/rapido.js"></script>
   <script src="js/ar/posicao.js"></script>
   <script type="module" src="js/ar/app.js"></script>
 </body>

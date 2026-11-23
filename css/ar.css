@@ -262,3 +262,82 @@ input[type=range] { width: 100%; accent-color: var(--brand); min-height: 32px; }
   .pos { grid-template-columns: 48px 1fr; gap: 10px; }
   .nota-pos { width: 48px; height: 48px; }
 }
+
+/* ===================== modo rápido, resultado e acessibilidade (v3) ===================== */
+.so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.segmentado.modo { margin-bottom: 16px; background: var(--surface); }
+.segmentado.modo label { min-height: 44px; display: flex; align-items: center; justify-content: center; }
+
+.rapido .rapido-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+.progresso { font-size: .82rem; font-weight: 700; color: var(--brand); }
+.ver-agora { font-size: .85rem; color: var(--brand); font-weight: 600; min-height: 44px; display: inline-flex; align-items: center; }
+.trilha { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.trilha:empty { display: none; }
+.trilha-item { font: inherit; font-size: .8rem; padding: 6px 10px; min-height: 36px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
+.trilha-item.padrao { color: var(--muted); border-style: dashed; }
+.pergunta { font-size: 1.2rem; line-height: 1.3; margin: 4px 0 6px; outline: none; }
+.rapido .dica { margin: 0 0 12px; font-size: .85rem; }
+.dica-inline { color: var(--muted); font-size: .78rem; }
+.opcoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.opcao {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; text-align: left;
+  min-height: 52px; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--border); background: var(--bg);
+  font: inherit; font-size: .95rem; color: var(--text); cursor: pointer;
+}
+.opcao .ic { font-size: 1.2rem; line-height: 1; }
+.opcao small { color: var(--muted); font-size: .75rem; }
+.opcao[aria-pressed=true] { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 14%, var(--bg)); font-weight: 700; }
+.opcao[aria-pressed=true] small { color: var(--text); }
+.digitar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; margin-bottom: 6px; }
+.digitar .campo { margin-bottom: 0; }
+.digitar input, .medidas input { width: 100%; min-height: 44px; padding: 8px 12px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+.medidas { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; align-items: center; }
+.pessoas-rapido { display: grid; grid-template-columns: auto 160px; gap: 12px; align-items: center; margin-bottom: 12px; font-weight: 600; }
+.pessoas-rapido output { display: grid; place-items: center; font-weight: 700; font-size: 1.1rem; }
+.rapido-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.rapido-nav .btn { min-height: 48px; padding: 8px 18px; }
+.btn.primario { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.acoes-gerais { margin-top: 4px; }
+
+.selo-lojas { display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 999px; font-size: .82rem; font-weight: 600; background: color-mix(in srgb, var(--surface) 75%, transparent); }
+.selo-lojas.acima { background: color-mix(in srgb, var(--sol) 22%, var(--surface)); }
+.tres-numeros { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.tres-numeros li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--surface) 70%, transparent); font-size: .88rem; }
+.tres-numeros li small { display: block; color: var(--muted); font-size: .74rem; }
+.tres-numeros li b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tres-numeros li.vence { outline: 2px solid var(--brand); }
+.tres-numeros li.vence span::after { content: " ← usado"; color: var(--brand); font-weight: 700; font-size: .75rem; }
+.tres-numeros li.nota-criterio { display: block; background: none; padding: 2px 2px 0; font-size: .8rem; color: var(--muted); }
+.conta { margin-top: 10px; font-size: .86rem; }
+.conta summary { cursor: pointer; color: var(--brand); font-weight: 600; min-height: 32px; }
+.conta ul { list-style: none; padding: 0; margin: 6px 0 0; }
+.conta li { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px dashed var(--border); }
+.conta li.total { font-weight: 700; border-bottom: 0; }
+.ajustes, .suposicoes { margin-top: 10px; padding: 8px 10px; border-radius: 10px; font-size: .84rem; background: color-mix(in srgb, var(--surface) 75%, transparent); }
+.ajustes { border-left: 4px solid var(--calor-1); }
+.ajustes ul, .suposicoes ul { margin: 4px 0 0; padding-left: 18px; }
+
+/* toque ≥ 44 px e foco bem visível */
+.btn, .chips label, .chips button { min-height: 44px; }
+.btn.pequeno { min-height: 40px; }
+.mini-stepper button { width: 44px; height: 44px; }
+.check input { width: 22px; height: 22px; }
+.pagina-ar :focus-visible { outline: 3px solid var(--brand) !important; outline-offset: 2px; }
+
+/* barra de resultado: no celular sempre; no desktop quando o cartão do resultado sai da tela */
+@media (min-width: 861px) {
+  .resumo-fora .barra-fixa {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px; position: fixed; z-index: 20;
+    right: 20px; bottom: 20px; padding: 12px 18px; border-radius: 14px; text-decoration: none;
+    background: var(--brand); color: var(--brand-ink); box-shadow: 0 6px 20px rgb(0 0 0 / 25%); font-size: .9rem;
+  }
+  .resumo-fora .barra-fixa b { font-size: 1.05rem; }
+  .resumo-fora .barra-fixa small { opacity: .85; margin-left: 6px; }
+}
+@media (max-width: 380px) {
+  .opcoes { grid-template-columns: minmax(0, 1fr); }
+}
+
+.barra-progresso { height: 6px; border-radius: 99px; background: var(--border); overflow: hidden; margin-bottom: 12px; }
+.barra-progresso i { display: block; height: 100%; width: 0; background: var(--brand); border-radius: 99px; transition: width .25s ease; }
+@media (prefers-reduced-motion: reduce) { .barra-progresso i { transition: none; } }
