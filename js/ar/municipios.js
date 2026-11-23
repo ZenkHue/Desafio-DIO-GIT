@@ -1,7 +1,7 @@
 /*
  * Os 5.570 municípios do Brasil com coordenadas (código IBGE; nome; UF; latitude; longitude).
  * Fonte: github.com/kelvins/municipios-brasileiros — MIT License, Copyright (c) 2016 Kelvin S. do Prado.
- * Gerado automaticamente a partir de csv/municipios.csv; não editar à mão.
+ * Os dados (BRUTO) são gerados a partir de csv/municipios.csv; não edite a lista à mão.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -17,8 +17,12 @@
   const semAcento = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
   const CHAVE = LISTA.map((m) => semAcento(m.nome));
 
-  /** Busca por nome, sem diferenciar acentos. Aceita "Salto de Pirapora", "salto de pirapora sp" ou "Salto de Pirapora/SP". */
-  function buscar(texto, max = 8) {
+  /**
+   * Busca por nome, sem diferenciar acentos. Aceita "Salto de Pirapora", "salto de pirapora sp" ou "Salto de Pirapora/SP".
+   * `prioridade` (Set de códigos IBGE, ou Map código → ordem) põe essas cidades na frente quando o encaixe do nome empata
+   * (ex.: "rio" traz Rio de Janeiro antes de Rio Acima).
+   */
+  function buscar(texto, max = 8, prioridade = null) {
     let q = semAcento(texto);
     if (!q) return [];
     let uf = null;
@@ -36,11 +40,29 @@
       else if (k.startsWith(q)) nota = 1;
       else if (k.includes(' ' + q)) nota = 2;
       else if (k.includes(q)) nota = 3;
-      if (nota >= 0) res.push([nota, k.length, LISTA[i]]);
+      if (nota >= 0) {
+        const pr = !prioridade ? 1 : prioridade instanceof Map ? (prioridade.has(LISTA[i].codigo) ? prioridade.get(LISTA[i].codigo) : 1e6) : prioridade.has(LISTA[i].codigo) ? 0 : 1;
+        res.push([nota, pr, k.length, LISTA[i]]);
+      }
     }
-    res.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-    return res.slice(0, max).map((r) => r[2]);
+    res.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+    return res.slice(0, max).map((r) => r[3]);
   }
 
-  return { LISTA, buscar, porCodigo: (c) => POR_CODIGO.get(Number(c)) || null, semAcento };
+  /** Município mais próximo de uma coordenada (para "Usar minha localização"). */
+  function maisProximo(lat, lon) {
+    let melhor = null;
+    let dMin = Infinity;
+    const c = Math.cos((lat * Math.PI) / 180);
+    for (const m of LISTA) {
+      const d = (m.lat - lat) ** 2 + ((m.lon - lon) * c) ** 2;
+      if (d < dMin) {
+        dMin = d;
+        melhor = m;
+      }
+    }
+    return melhor;
+  }
+
+  return { LISTA, buscar, maisProximo, porCodigo: (c) => POR_CODIGO.get(Number(c)) || null, semAcento };
 });

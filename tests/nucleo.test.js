@@ -166,10 +166,32 @@ test('capacidade comercial: menor aparelho que atende com 5% de tolerância; vá
 test('método de mercado: 600 BTU/m² (800 com sol da tarde) + 600 por pessoa extra e por aparelho que esquenta', () => {
   const r = N.calcular({ ambiente: { largura: 3, comprimento: 4, peDireito: 2.6 }, pessoas: { quantidade: 3 }, aparelhos: { tv: 1, notebook: 1, geladeira: 1, lampada: 2 } });
   assert.equal(r.mercado.base, 800);
-  assert.equal(r.mercado.btu, 12 * 800 + 600 * 2 + 600 * 3, 'lâmpada não entra na conta de mercado');
+  assert.equal(r.mercado.btu, 12 * 800 + 600 * 2 + 600 * 5, 'TV, notebook, geladeira e 2 lâmpadas incandescentes contam 600 cada');
   assert.equal(r.mercado.itens.reduce((s, x) => s + x.btu, 0), r.mercado.btu, 'as parcelas somam o total');
   const semSol = N.calcular({ paredes: { A: { sol: 'manha' } } });
   assert.equal(semSol.mercado.base, 600);
+  // acréscimos pesquisados: +20% da base com telhado sem laje ou laje pegando sol; +4.000 na cozinha; pé-direito alto
+  const base = N.calcular({ aparelhos: {}, pessoas: { quantidade: 1 }, paredes: { A: { sol: 'nao' } } }).mercado.btu;
+  assert.equal(base, 12 * 600, 'sem aparelhos nem pessoas extras, só a área (a TV do padrão não volta)');
+  assert.equal(N.calcular({ aparelhos: {}, pessoas: { quantidade: 1 }, paredes: { A: { sol: 'nao' } }, cobertura: { tipo: 'telha' } }).mercado.btu, Math.round(base * 1.2));
+  assert.equal(N.calcular({ aparelhos: {}, pessoas: { quantidade: 1 }, paredes: { A: { sol: 'nao' } }, cobertura: { tipo: 'forro' } }).mercado.btu, Math.round(base * 1.2));
+  assert.equal(N.calcular({ tipo: 'cozinha', aparelhos: {}, pessoas: { quantidade: 1 }, paredes: { A: { sol: 'nao' } } }).mercado.btu, base + 4000);
+  assert.equal(N.calcular({ aparelhos: {}, pessoas: { quantidade: 1 }, paredes: { A: { sol: 'nao' } }, ambiente: { peDireito: 3.5 } }).mercado.btu, Math.round(base * 3.5 / 2.8));
+});
+
+test('22 m²: nunca 12.000 — sempre pelo menos o que 11 de 14 tabelas de lojas indicam (18.000)', () => {
+  for (const tipo of ['quarto', 'sala', 'escritorio']) for (const sol of ['nao', 'manha', 'tarde', 'diatodo']) for (const cob of ['apartamento', 'apartamento_ar', 'laje_telhado', 'forro', 'telha'])
+    for (const uso of [[21, 7], [12, 0], [8, 18], [0, 0]]) {
+      const e = N.aplicarTipo({ ambiente: { largura: 4.4, comprimento: 5 }, cobertura: { tipo: cob }, paredes: { A: { sol } } }, tipo);
+      e.uso = { inicio: uso[0], fim: uso[1], temperatura: 25 };
+      e.avancado = { ...e.avancado, partida: 'nenhuma' };
+      assert.ok(N.calcular(e).dimensionamento.capacidadeTotal >= 18000, `${tipo}/${sol}/${cob}/${uso}`);
+    }
+});
+
+test('sol da manhã não pesa mais que sol da tarde na sala (tarde e noite)', () => {
+  const sala = (sol) => N.calcular(N.aplicarTipo({ ambiente: { largura: 4, comprimento: 5 }, paredes: { A: { sol } } }, 'sala')).dimensionamento.capacidadeTotal;
+  assert.ok(sala('manha') <= sala('tarde'));
 });
 
 test('recomendação = o maior entre o método de mercado e o cálculo hora a hora (ou o critério escolhido)', () => {

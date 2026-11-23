@@ -209,7 +209,7 @@
     { id: 'forno', nome: 'Forno elétrico', sens: 700, cozinha: true },
     { id: 'fogao', nome: 'Fogão a gás (cozinhando)', sens: 1500, lat: 400, cozinha: true },
     { id: 'cafeteira', nome: 'Cafeteira', sens: 80, cozinha: true, conta: false },
-    { id: 'lampada', nome: 'Lâmpada incandescente/halógena (cada)', sens: 60, conta: false },
+    { id: 'lampada', nome: 'Lâmpada incandescente/halógena (cada)', sens: 60 },
     { id: 'servidor', nome: 'Servidor / rack de rede', sens: 400, sempre: true, eletronico: true },
   ];
   const APARELHOS_POR_ID = Object.fromEntries(APARELHOS.map((a) => [a.id, a]));
@@ -251,7 +251,8 @@
     pessoaExtra: 600, // por pessoa a partir da 2ª
     eletronico: 600, // por eletrônico/eletrodoméstico que esquenta (TV, computador, videogame, geladeira, fogão…)
     peDireitoRef: 2.8, // acima disso a base cresce na proporção do volume
-    cobertura: { telha: 0.2, laje_exposta: 0.2, forro: 0.1 }, // acréscimo sobre a base: teto que pega sol
+    cobertura: { telha: 0.2, laje_exposta: 0.2, forro: 0.2 }, // +20% da base: telhado sem laje ou laje pegando sol (TCL)
+    cozinha: 4000, // cozinha: + 4.000 BTU/h (Energy Star; TCL e Climario falam em +30%)
   };
 
   /** Como escolher a recomendação final. */
@@ -567,6 +568,8 @@
 
     e.pessoas.quantidade = limitar(Math.floor(num(e.pessoas.quantidade, 1)), 0, 200);
     if (!ATIVIDADES[e.pessoas.atividade]) e.pessoas.atividade = 'sentado';
+    // a lista de aparelhos da pessoa SUBSTITUI a padrão (senão a TV do padrão voltaria depois de removida)
+    if (entrada && entrada.aparelhos && typeof entrada.aparelhos === 'object') e.aparelhos = { ...entrada.aparelhos };
     const ap = {};
     for (const [id, q] of Object.entries(e.aparelhos || {})) {
       if (APARELHOS_POR_ID[id]) {
@@ -839,10 +842,14 @@
     let partida = null;
     if (uso.length < 24) {
       const hOn = uso[0];
-      const hAntes = (hOn + 23) % 24;
+      // Quanto o ambiente "flutua" acima do desejado: média dos ganhos nas 6 horas antes de ligar ÷ condutância.
+      // A média (e não só a hora anterior) representa a massa das paredes e móveis absorvendo parte do calor.
       let ganhoAntes = 0;
-      for (const c of comps) ganhoAntes += c.sens[hAntes];
-      const dTlivre = limitar(ganhoAntes / Math.max(condutancia, 1), 0, 8); // quanto o ambiente "flutua" acima do desejado
+      for (let k = 1; k <= 6; k++) {
+        const h = (hOn - k + 24) % 24;
+        for (const c of comps) ganhoAntes += c.sens[h] / 6;
+      }
+      const dTlivre = limitar(ganhoAntes / Math.max(condutancia, 1), 0, 6);
       const areaInterna = 2 * (e.ambiente.largura + e.ambiente.comprimento) * e.ambiente.peDireito + 2 * geo.area;
       const capacidadeRapida = (1.2 * 1006 * geo.volume + 15000 * geo.area) / 3600; // ar + móveis, W/K em 1 h
       const qPartida = PARTIDAS[e.avancado.partida].fator * dTlivre * (capacidadeRapida + 0.3 * 8 * areaInterna);
@@ -981,6 +988,7 @@
     for (const [id, q] of Object.entries(e.aparelhos)) if (APARELHOS_POR_ID[id].conta !== false) eletronicos += q;
     eletronicos += e.extras.length;
     if (eletronicos) itens.push({ id: 'eletronicos', rotulo: `${eletronicos} aparelho${eletronicos > 1 ? 's' : ''} que esquenta${eletronicos > 1 ? 'm' : ''} × ${MERCADO.eletronico}`, btu: eletronicos * MERCADO.eletronico });
+    if (e.tipo === 'cozinha') itens.push({ id: 'cozinha', rotulo: 'Cozinha (fogão e vapor)', btu: MERCADO.cozinha });
     const fTeto = MERCADO.cobertura[e.cobertura.tipo] || 0;
     if (fTeto) itens.push({ id: 'teto', rotulo: `Teto que pega sol (+${Math.round(fTeto * 100)}% da base)`, btu: base * fTeto });
     const btu = itens.reduce((s, x) => s + x.btu, 0);
@@ -1080,8 +1088,10 @@
       tentar('teto-claro', 'Telhado ou laje de cor clara', 'Tinta branca/térmica ou telha clara absorvem bem menos sol.', (e) => {
         e.cobertura.cor = 'clara';
       });
+    // pintar a fachada só faz sentido em casa (em apartamento quem decide é o condomínio)
+    const apartamento = ['apartamento', 'apartamento_ar'].includes(e0.cobertura.tipo) && e0.piso === 'andar';
     for (const k of PAREDES) {
-      if (e0.paredes[k].tipo === 'externa' && base.exposicao[k] !== 'nao' && e0.paredes[k].cor !== 'clara')
+      if (!apartamento && e0.paredes[k].tipo === 'externa' && base.exposicao[k] !== 'nao' && e0.paredes[k].cor !== 'clara')
         tentar('parede-clara-' + k, `Pintar a parede ${k} de cor clara (por fora)`, 'Parede clara absorve menos sol.', (e) => {
           e.paredes[k].cor = 'clara';
         });

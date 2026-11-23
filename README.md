@@ -21,13 +21,13 @@ Simula o salário líquido de um trabalhador CLT, com as tabelas de **2026**.
 
 ## Calculadora de BTUs (ar-condicionado)
 
-Diz **quantos BTUs** o ambiente precisa, mostra **de onde vem o calor hora a hora** e **onde instalar** o aparelho, com o ambiente em 3D.
+Diz **quantos BTUs** o ambiente precisa (no **modo rápido**, com 7 a 9 perguntas de toque, ou no **detalhado**, parede por parede), mostra **de onde vem o calor hora a hora** e **onde instalar** o aparelho, com o ambiente em 3D.
 
 - **Qualquer cidade do Brasil:** busca entre os 5.570 municípios (sem precisar de acento). O sol usa a latitude exata, e o clima é estimado pelas cidades de referência mais próximas, com a origem mostrada na tela.
 - **Do jeito que o brasileiro fala:** tipo de ambiente (quarto, sala, cozinha…), "a parede pega sol de manhã, à tarde ou o dia todo?", "o que tem em cima? laje com telhado, só telha, outro andar…", "quando o ar fica ligado?". Quem sabe a orientação pode usar a bússola.
 - **Cálculo hora a hora (0h–23h)**, como os softwares profissionais: sol na posição real para a latitude da cidade, temperatura variando no dia, atraso térmico das paredes (o sol da tarde vira calor à noite), sol pelas janelas com séries radiantes (RTS), vizinhos e andares, pessoas, aparelhos com horário de uso, ar de fora e **carga de partida** (o calor acumulado quando o ar fica desligado).
 - **Rendimento real do aparelho:** a etiqueta vale para 27 °C dentro e 35 °C fora; a 23 °C ele rende ~10% menos, e o app já desconta isso.
-- **Resultado em tamanhos comerciais** (7.500 a 60.000 BTUs), lado a lado com a **regra das lojas** (600/800 BTU/m²) e a explicação da diferença, incluindo o aviso de "no limite" entre dois tamanhos.
+- **Nunca abaixo das lojas:** recomenda o **maior** entre o método de mercado (600/800 BTU/m² + pessoas + aparelhos + telhado + cozinha) e o cálculo hora a hora, mostrando as duas contas em tamanhos comerciais (7.500 a 60.000 BTUs).
 - **Gráfico do calor por hora**, com o que o aparelho entrega e as horas com o ar desligado; tabela hora a hora.
 - **3D** com o sol andando conforme a hora escolhida, mapa de calor por parede, janelas, portas, móveis, jato de ar, condensadora e alternativas clicáveis; **planta 2D** com móveis arrastáveis.
 - **Onde instalar:** nota 0–100 para cada parede (alcance do ar, conforto, condensadora fora do sol da tarde, tubulação, portas).
@@ -36,9 +36,18 @@ Diz **quantos BTUs** o ambiente precisa, mostra **de onde vem o calor hora a hor
 
 Leia o **[estudo técnico](docs/estudo-carga-termica.md)**: método, fórmulas, comparação com as ferramentas de mercado, cenários de referência e grau de confiança de cada dado.
 
-### Agente especialista
+### Agentes especialistas
 
-`.claude/agents/especialista-ar-condicionado.md` define um subagente do Claude Code. Ele levanta os dados do ambiente, calcula pelo **mesmo motor do app** e responde com BTUs, motivo, comparação com as lojas, onde instalar e melhorias.
+Quatro subagentes do Claude Code em `.claude/agents/`:
+
+| Agente | Para quê |
+|---|---|
+| `especialista-produto-simples` | Telas, perguntas e textos que qualquer pessoa entende; mapa mental e árvore de decisões ([veja](docs/mapa-mental-e-arvore.md)) |
+| `especialista-calculo-termico` | Calcula e audita a carga térmica pelo mesmo motor do app |
+| `especialista-mercado-instalacao` | O que lojas e fabricantes recomendam, compra e instalação |
+| `especialista-qualidade` | Testes unitários e de navegador antes de publicar |
+
+O agente térmico usa a linha de comando:
 
 ```bash
 node scripts/carga-termica.js scripts/exemplos/quarto.json        # resumo em texto
@@ -51,6 +60,7 @@ node scripts/carga-termica.js caso.json --json                    # resultado co
 ```bash
 npm start        # serve em http://localhost:8080 (python3 -m http.server)
 npm test         # testes do núcleo de cálculo (Node 18+)
+npm run test:e2e # testes no navegador (precisa do Playwright)
 ```
 
 As páginas usam módulos ES e importmap (3D), então sirva por HTTP (`npm start`) em vez de abrir o arquivo direto.
